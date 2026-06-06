@@ -1,0 +1,9 @@
+backend/.env
+backend/node_modules
+frontend/node_modules
+frontend/build
+EOFgit rm --cached backend/.env
+git add .
+git commit -m "Suppression env du depot"
+git push -u origin master
+
