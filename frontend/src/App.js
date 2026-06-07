@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Casiers from './pages/Casiers';
 import Livreur from './pages/Livreur';
+import Admin from './pages/Admin';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -21,6 +22,10 @@ function App() {
   };
 
   if (!user) return <Login onLogin={handleLogin} />;
+
+  if (user.role === 'admin') {
+    return <Admin user={user} onLogout={handleLogout} />;
+  }
 
   if (user.role === 'livreur') {
     return <Livreur user={user} onLogout={handleLogout} />;
