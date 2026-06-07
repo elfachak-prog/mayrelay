@@ -35,7 +35,7 @@ function Modal({ title, onClose, children }) {
 function GestionPartenaires() {
   const [partenaires, setPartenaires] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [selected, setSelected] = useState(null);
+  
   const [form, setForm] = useState({ nom: '', email: '', mot_de_passe: '', telephone: '', zone: '', horaires: '08:00-20:00' });
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
