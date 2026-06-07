@@ -73,7 +73,7 @@ function GestionPartenaires() {
     try {
       await API.put(`/admin/partenaires/${id}/statut`, { statut });
       charger();
-      setSelected(null);
+      
     } catch (err) { console.error(err); }
   };
 
