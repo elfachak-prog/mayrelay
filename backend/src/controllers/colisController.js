@@ -43,9 +43,19 @@ const creerColis = async (req, res) => {
 
     const colis = result.rows[0];
 
-    const message = `Bonjour ${nom_destinataire}, votre ${type.toLowerCase()} MayRelay est arrive au point relais de ${quartier}. Reference: ${reference}. Venez le recuperer avec cette reference. Merci`;
+    const partInfo = await db.query(
+      'SELECT nom, zone, horaires FROM partenaires WHERE id = $1',
+      [partenaire_id]
+    );
+    const partenaire = partInfo.rows[0];
+
+    const message = `Bonjour ${nom_destinataire}, votre ${type.toLowerCase()} MayRelay est arrive au point relais ${partenaire.nom} (${partenaire.zone}). Reference: ${reference}. Suivez votre colis: mayrelay.vercel.app/suivi . Horaires: ${partenaire.horaires}. Merci`;
 
     const smsResult = await envoyerSMS(telephone_destinataire, message);
+
+    if (telephone2_destinataire) {
+      await envoyerSMS(telephone2_destinataire, message);
+    }
 
     await db.query(
       'INSERT INTO notifications (colis_id, telephone, message, statut) VALUES ($1, $2, $3, $4)',
