@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import API from '../services/api';
+import Parametres from './Parametres';
 
 const C = {
   bg: "#F0F2F5", white: "#FFFFFF", navy: "#0B1F3A",
@@ -317,6 +318,7 @@ export default function Admin({ user, onLogout }) {
     { key: 'partenaires', icon: '🏪', label: 'Partenaires' },
     { key: 'livreurs', icon: '🛵', label: 'Livreurs' },
     { key: 'colis', icon: '📦', label: 'Colis' },
+    { key: 'parametres', icon: '⚙️', label: 'Parametres' },
   ];
 
   return (
@@ -365,7 +367,10 @@ export default function Admin({ user, onLogout }) {
         {onglet === 'partenaires' && <GestionPartenaires />}
         {onglet === 'livreurs' && <GestionLivreurs />}
         {onglet === 'colis' && <GestionColis />}
+        {onglet === 'parametres' && <Parametres />}
       </div>
     </div>
   );
 }
+
+import Parametres from './Parametres';
