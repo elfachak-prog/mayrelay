@@ -5,6 +5,7 @@ import Casiers from './pages/Casiers';
 import Livreur from './pages/Livreur';
 import Admin from './pages/Admin';
 import Paiements from './pages/Paiements';
+import Suivi from './pages/Suivi';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -21,6 +22,11 @@ function App() {
     localStorage.removeItem('user');
     setUser(null);
   };
+
+  const path = window.location.pathname;
+  if (path === '/suivi' || path.startsWith('/suivi')) {
+    return <Suivi />;
+  }
 
   if (!user) return <Login onLogin={handleLogin} />;
   if (user.role === 'admin') return <Admin user={user} onLogout={handleLogout} />;

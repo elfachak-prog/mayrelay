@@ -10,6 +10,7 @@ const casiersRoutes = require('./routes/casiers');
 const adminRoutes = require('./routes/admin');
 const paiementsRoutes = require('./routes/paiements');
 const parametresRoutes = require('./routes/parametres');
+const suiviRoutes = require('./routes/suivi');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use('/api/casiers', casiersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/parametres', parametresRoutes);
+app.use('/api/suivi', suiviRoutes);
 
 app.listen(PORT, () => {
   console.log('Serveur MayRelay demarre sur le port ' + PORT);
