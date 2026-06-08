@@ -56,7 +56,6 @@ export default function Paiements({ user }) {
   const partLivreur = avecLivreur ? (prix * 0.30).toFixed(2) : '0.00';
   const partMayrelay = avecLivreur ? (prix * 0.20).toFixed(2) : (prix * 0.55).toFixed(2);
 
-  const inputStyle = { width: '100%', padding: '10px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif', background: '#FAFBFC' };
 
   return (
     <div>
