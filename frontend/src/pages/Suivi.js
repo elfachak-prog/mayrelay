@@ -26,11 +26,11 @@ const statutConfig = {
     description: 'Votre colis est arrive au point relais. Vous pouvez venir le recuperer.'
   },
   paye: {
-    label: 'Livre et encaisse',
+    label: 'Votre colis est pret a etre retire',
     icon: '✅',
     color: '#10B981',
     bg: '#D1FAE5',
-    description: 'Votre colis a ete livre et recupere.'
+    description: 'Votre colis est disponible au point relais. Venez le recuperer avec votre reference.'
   },
 };
 
