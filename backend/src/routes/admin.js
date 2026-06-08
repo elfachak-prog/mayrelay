@@ -90,3 +90,50 @@ router.get('/colis', async (req, res) => {
 });
 
 module.exports = router;
+
+router.get('/finance', async (req, res) => {
+  try {
+    const total = await db.query(`
+      SELECT 
+        SUM(part_mayrelay) as total_encaisse,
+        SUM(CASE WHEN statut = 'encaisse' THEN part_mayrelay ELSE 0 END) as total_a_recevoir,
+        SUM(CASE WHEN statut = 'reverse' THEN part_mayrelay ELSE 0 END) as total_recu
+      FROM paiements
+    `);
+
+    const par_partenaire = await db.query(`
+      SELECT 
+        pat.id, pat.nom, pat.email, pat.telephone, pat.zone,
+        COUNT(p.id) as nb_colis,
+        SUM(p.montant_total) as volume_total,
+        SUM(p.part_mayrelay) as total_du,
+        SUM(CASE WHEN p.statut = 'encaisse' THEN p.part_mayrelay ELSE 0 END) as montant_a_recevoir,
+        SUM(CASE WHEN p.statut = 'reverse' THEN p.part_mayrelay ELSE 0 END) as montant_recu
+      FROM partenaires pat
+      LEFT JOIN paiements p ON pat.id = p.partenaire_id
+      GROUP BY pat.id, pat.nom, pat.email, pat.telephone, pat.zone
+      ORDER BY montant_a_recevoir DESC
+    `);
+
+    res.json({ 
+      totaux: total.rows[0],
+      par_partenaire: par_partenaire.rows 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+router.put('/finance/confirmer/:partenaire_id', async (req, res) => {
+  try {
+    await db.query(
+      `UPDATE paiements SET statut = 'reverse', updated_at = NOW() 
+       WHERE partenaire_id = $1 AND statut = 'encaisse'`,
+      [req.params.partenaire_id]
+    );
+    res.json({ message: 'Reversement confirme' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
