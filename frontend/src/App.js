@@ -5,7 +5,6 @@ import Casiers from './pages/Casiers';
 import Livreur from './pages/Livreur';
 import Admin from './pages/Admin';
 import Paiements from './pages/Paiements';
-import Parametres from './pages/Parametres';
 
 function App() {
   const [user, setUser] = useState(() => {
