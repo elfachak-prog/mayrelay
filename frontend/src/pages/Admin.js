@@ -373,4 +373,3 @@ export default function Admin({ user, onLogout }) {
   );
 }
 
-import Parametres from './Parametres';
