@@ -1,50 +1,66 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 
 export default function QRScanner({ onScan, onClose }) {
-  const scannerRef = useRef(null);
+  const videoRef = useRef(null);
   const [erreur, setErreur] = useState('');
-  const [actif, setActif] = useState(false);
+  const [stream, setStream] = useState(null);
 
   useEffect(() => {
-    const scanner = new Html5Qrcode('qr-reader');
-    scannerRef.current = scanner;
-
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        scanner.stop().then(() => {
-          onScan(decodedText);
-        });
-      },
-      () => {}
-    ).then(() => {
-      setActif(true);
+    let localStream;
+    navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: 'environment' } 
+    }).then(s => {
+      localStream = s;
+      setStream(s);
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.play();
+      }
     }).catch(err => {
-      setErreur('Impossible d acceder a la camera: ' + err);
+      setErreur('Camera non accessible: ' + err.message);
     });
 
     return () => {
-      if (scannerRef.current && actif) {
-        scannerRef.current.stop().catch(() => {});
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
       }
     };
   }, []);
 
+  const handleStop = () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
+    onClose();
+  };
+
+  const handleManuel = () => {
+    const ref = prompt('Entrez la reference du colis manuellement:');
+    if (ref && ref.trim()) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      onScan(JSON.stringify({ reference: ref.trim().toUpperCase() }));
+    }
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 20, fontFamily: 'sans-serif' }}>
-        📷 Scanner le QR code du colis
+    <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 16, fontFamily: 'sans-serif' }}>
+        📷 Scanner le QR code
       </div>
-      <div id="qr-reader" style={{ width: 300, borderRadius: 12, overflow: 'hidden' }} />
-      {erreur && (
-        <div style={{ color: '#EF4444', fontSize: 13, marginTop: 16, textAlign: 'center', padding: '0 24px', fontFamily: 'sans-serif' }}>
+      {erreur ? (
+        <div style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', padding: '0 24px', fontFamily: 'sans-serif', marginBottom: 20 }}>
           {erreur}
         </div>
+      ) : (
+        <video ref={videoRef} style={{ width: 300, height: 300, objectFit: 'cover', borderRadius: 12, border: '3px solid #F5A623' }} playsInline autoPlay muted />
       )}
-      <button onClick={() => { if (scannerRef.current) { scannerRef.current.stop().catch(() => {}); } onClose(); }}
-        style={{ marginTop: 24, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '12px 28px', fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+      <div style={{ color: '#888', fontSize: 12, margin: '12px 0', fontFamily: 'sans-serif' }}>
+        Pointez vers le QR code du colis
+      </div>
+      <button onClick={handleManuel} style={{ margin: '8px 0', background: '#F5A623', color: '#000', border: 'none', borderRadius: 10, padding: '12px 24px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+        ✍️ Saisir la reference manuellement
+      </button>
+      <button onClick={handleStop} style={{ margin: '8px 0', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '12px 24px', fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif' }}>
         Annuler
       </button>
     </div>
