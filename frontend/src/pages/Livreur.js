@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getMissionsDisponibles, accepterMission } from '../services/api';
+import QRScanner from '../components/QRScanner';
 
 const C = {
   bg: "#0F1923", surface: "#17242F", card: "#1E3040",
@@ -279,52 +280,14 @@ export default function Livreur({ user, onLogout }) {
 
       {/* QR Scanner */}
       {showQR && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif', marginBottom: 24, textAlign: 'center' }}>Pointez la camera vers le QR code du colis</div>
-          <div style={{ width: 260, height: 260, position: 'relative', marginBottom: 28 }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: 28, height: 28, borderTop: `3px solid ${C.accent}`, borderLeft: `3px solid ${C.accent}` }} />
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 28, height: 28, borderTop: `3px solid ${C.accent}`, borderRight: `3px solid ${C.accent}` }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, width: 28, height: 28, borderBottom: `3px solid ${C.accent}`, borderLeft: `3px solid ${C.accent}` }} />
-            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderBottom: `3px solid ${C.accent}`, borderRight: `3px solid ${C.accent}` }} />
-            <div style={{ position: 'absolute', inset: 20, background: C.card, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-              {!scanDone ? (
-                <>
-                  <svg width="120" height="120" viewBox="0 0 120 120">
-                    <rect x="8" y="8" width="32" height="32" rx="3" fill="none" stroke={C.accent} strokeWidth="3"/>
-                    <rect x="14" y="14" width="20" height="20" rx="1" fill={C.accent} opacity="0.5"/>
-                    <rect x="80" y="8" width="32" height="32" rx="3" fill="none" stroke={C.accent} strokeWidth="3"/>
-                    <rect x="86" y="14" width="20" height="20" rx="1" fill={C.accent} opacity="0.5"/>
-                    <rect x="8" y="80" width="32" height="32" rx="3" fill="none" stroke={C.accent} strokeWidth="3"/>
-                    <rect x="14" y="86" width="20" height="20" rx="1" fill={C.accent} opacity="0.5"/>
-                    <rect x="50" y="50" width="8" height="8" fill={C.muted} opacity="0.6"/>
-                    <rect x="62" y="50" width="8" height="8" fill={C.muted} opacity="0.6"/>
-                    <rect x="50" y="62" width="8" height="8" fill={C.muted} opacity="0.6"/>
-                    <line x1="8" y1={8 + (scanProgress/100)*104} x2="112" y2={8 + (scanProgress/100)*104} stroke={C.green} strokeWidth="2" opacity="0.9"/>
-                  </svg>
-                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>Scan en cours...</div>
-                  <div style={{ width: 120, height: 3, background: C.border, borderRadius: 2 }}>
-                    <div style={{ width: `${scanProgress}%`, height: '100%', background: C.green, borderRadius: 2 }} />
-                  </div>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.green, fontFamily: 'sans-serif' }}>QR Code detecte</div>
-                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace', marginTop: 6 }}>{missionEnCours?.reference}</div>
-                </div>
-              )}
-            </div>
-          </div>
-          {scanDone ? (
-            <div style={{ width: '100%', maxWidth: 300 }}>
-              <button onClick={confirmerScan} style={{ width: '100%', padding: 14, background: C.green, border: 'none', borderRadius: 12, color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Confirmer →</button>
-            </div>
-          ) : (
-            <div onClick={() => setShowQR(false)} style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif', cursor: 'pointer' }}>Annuler</div>
-          )}
-        </div>
+        <QRScanner
+          onScan={(data) => {
+            setShowQR(false);
+            confirmerScan(data);
+          }}
+          onClose={() => setShowQR(false)}
+        />
       )}
-
       {/* Bottom nav */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: C.surface, borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50 }}>
         {tabs.map(t => (
