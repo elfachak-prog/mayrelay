@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 require('dotenv').config();
 require('./config/database');
 
@@ -11,6 +12,7 @@ const adminRoutes = require('./routes/admin');
 const paiementsRoutes = require('./routes/paiements');
 const parametresRoutes = require('./routes/parametres');
 const suiviRoutes = require('./routes/suivi');
+const { verifierColisNonRecuperes } = require('./services/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +36,11 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/parametres', parametresRoutes);
 app.use('/api/suivi', suiviRoutes);
+
+cron.schedule('0 * * * *', () => {
+  console.log('Job cron - verification colis non recuperes');
+  verifierColisNonRecuperes();
+});
 
 app.listen(PORT, () => {
   console.log('Serveur MayRelay demarre sur le port ' + PORT);
