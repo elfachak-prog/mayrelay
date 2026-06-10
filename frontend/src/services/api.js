@@ -19,5 +19,6 @@ export const getMesColis = () => API.get('/colis');
 export const getMissionsDisponibles = () => API.get('/missions/disponibles');
 export const accepterMission = (id) => API.put(`/missions/${id}/accepter`);
 export const confirmerLivraison = (id, data) => API.put(`/missions/${id}/confirmer`, data);
+export const getMesMissions = () => API.get('/missions/mes-missions');
 
 export default API;

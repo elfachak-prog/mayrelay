@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMissionsDisponibles, accepterMission } from '../services/api';
+import { getMissionsDisponibles, accepterMission, getMesMissions } from '../services/api';
 import QRScanner from '../components/QRScanner';
 
 const C = {
@@ -69,10 +69,31 @@ export default function Livreur({ user, onLogout }) {
 
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(0);
+  const [historique, setHistorique] = useState([]);
+  const [position, setPosition] = useState(null);
+  const [geoErreur, setGeoErreur] = useState('');
 
   useEffect(() => {
     chargerMissions();
+    chargerHistorique();
+    demarrerGeo();
   }, []);
+
+  const chargerHistorique = async () => {
+    try {
+      const res = await getMesMissions();
+      setHistorique(res.data.missions.filter(m => m.statut === 'termine'));
+    } catch (err) { console.error(err); }
+  };
+
+  const demarrerGeo = () => {
+    if (!navigator.geolocation) { setGeoErreur('Geolocalisation non supportee'); return; }
+    navigator.geolocation.watchPosition(
+      (pos) => setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude, precision: Math.round(pos.coords.accuracy) }),
+      () => setGeoErreur('Position indisponible'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const chargerMissions = async () => {
     try {
@@ -107,6 +128,7 @@ export default function Livreur({ user, onLogout }) {
   const tabs = [
     { key: 'missions', icon: '🗺️', label: 'Missions' },
     { key: 'en_cours', icon: '🛵', label: 'En cours' },
+    { key: 'historique', icon: '📋', label: 'Historique' },
     { key: 'gains', icon: '💰', label: 'Gains' },
   ];
 
@@ -253,6 +275,48 @@ export default function Livreur({ user, onLogout }) {
           </div>
         )}
 
+        {/* Historique */}
+        {onglet === 'historique' && (
+          <div style={{ padding: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>📋 Mes missions terminées</div>
+            {/* Géolocalisation */}
+            <div style={{ background: C.card, borderRadius: 12, padding: 12, border: `1px solid ${C.border}`, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 20 }}>📍</div>
+              <div>
+                {position ? (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.green, fontFamily: 'sans-serif' }}>Position active</div>
+                    <div style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{position.lat.toFixed(5)}, {position.lng.toFixed(5)} — ±{position.precision}m</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12, color: geoErreur ? C.red : C.muted, fontFamily: 'sans-serif' }}>{geoErreur || 'Recherche de position...'}</div>
+                )}
+              </div>
+            </div>
+            {historique.length === 0 ? (
+              <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🏁</div>
+                <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif' }}>Aucune mission terminée pour l'instant</div>
+              </div>
+            ) : (
+              historique.map((m, i) => (
+                <div key={i} style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}`, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>{m.reference}</div>
+                    <div style={{ fontSize: 11, background: C.green + '22', color: C.green, borderRadius: 6, padding: '3px 8px', fontFamily: 'sans-serif' }}>✅ Terminée</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>
+                    📦 {m.partenaire_depart} → {m.partenaire_destination}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>{new Date(m.created_at).toLocaleDateString('fr-FR')}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, fontFamily: 'sans-serif' }}>+{m.gain_livreur}€</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
         {/* Gains */}
         {onglet === 'gains' && (
           <div style={{ padding: 16 }}>
