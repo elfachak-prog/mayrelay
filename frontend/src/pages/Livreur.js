@@ -96,17 +96,7 @@ export default function Livreur({ user, onLogout }) {
     }
   };
 
-  const lancerScan = () => {
-    setShowQR(true);
-    setScanProgress(0);
-    setScanDone(false);
-    const interval = setInterval(() => {
-      setScanProgress(p => {
-        if (p >= 100) { clearInterval(interval); setScanDone(true); return 100; }
-        return p + 3;
-      });
-    }, 60);
-  };
+  const lancerScan = () => { setShowQR(true); };
 
   const confirmerScan = () => {
     setShowQR(false);
