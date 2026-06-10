@@ -65,8 +65,8 @@ export default function Livreur({ user, onLogout }) {
   const [missionEnCours, setMissionEnCours] = useState(null);
   const [etape, setEtape] = useState('aller_chercher');
   const [showQR, setShowQR] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanDone, setScanDone] = useState(false);
+
+
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(0);
 
