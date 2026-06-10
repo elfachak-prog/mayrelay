@@ -70,6 +70,8 @@ export default function Livreur({ user, onLogout }) {
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(0);
   const [historique, setHistorique] = useState([]);
+  const [showTestQR, setShowTestQR] = useState(false);
+  const [testResult, setTestResult] = useState('');
   const [position, setPosition] = useState(null);
   const [geoErreur, setGeoErreur] = useState('');
 
@@ -130,6 +132,7 @@ export default function Livreur({ user, onLogout }) {
     { key: 'en_cours', icon: '🛵', label: 'En cours' },
     { key: 'historique', icon: '📋', label: 'Historique' },
     { key: 'gains', icon: '💰', label: 'Gains' },
+    { key: 'test', icon: '🧪', label: 'Test' },
   ];
 
   return (
@@ -318,6 +321,44 @@ export default function Livreur({ user, onLogout }) {
           </div>
         )}
         {/* Gains */}
+        {/* Test caméra et QR */}
+        {onglet === 'test' && (
+          <div style={{ padding: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 8 }}>🧪 Zone de test</div>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 20 }}>Teste la caméra et le scanner QR sans avoir besoin d'une mission.</div>
+
+            {/* Test QR Scanner */}
+            <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}`, marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 8 }}>📷 Test Scanner QR</div>
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 14 }}>Appuie sur le bouton pour ouvrir la caméra et scanner n'importe quel QR code.</div>
+              {testResult ? (
+                <div style={{ background: C.green + '22', borderRadius: 10, padding: 12, marginBottom: 12, border: `1px solid ${C.green}44` }}>
+                  <div style={{ fontSize: 11, color: C.green, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 4 }}>✅ QR Code détecté !</div>
+                  <div style={{ fontSize: 12, color: C.white, fontFamily: 'monospace', wordBreak: 'break-all' }}>{testResult}</div>
+                  <button onClick={() => setTestResult('')} style={{ marginTop: 10, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 11, padding: '6px 12px', cursor: 'pointer', fontFamily: 'sans-serif' }}>Réinitialiser</button>
+                </div>
+              ) : null}
+              <button onClick={() => setShowTestQR(true)} style={{ width: '100%', padding: 14, background: C.accent, border: 'none', borderRadius: 12, color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                📷 Ouvrir la caméra
+              </button>
+            </div>
+
+            {/* Info géoloc */}
+            <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 8 }}>📍 Test Géolocalisation</div>
+              {position ? (
+                <>
+                  <div style={{ fontSize: 12, color: C.green, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 6 }}>✅ GPS actif</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontFamily: 'monospace', marginBottom: 4 }}>Lat: {position.lat.toFixed(6)}</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontFamily: 'monospace', marginBottom: 4 }}>Lng: {position.lng.toFixed(6)}</div>
+                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>Précision: ±{position.precision}m</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: geoErreur ? C.red : C.muted, fontFamily: 'sans-serif' }}>{geoErreur || '⏳ Recherche GPS...'}</div>
+              )}
+            </div>
+          </div>
+        )}
         {onglet === 'gains' && (
           <div style={{ padding: 16 }}>
             <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 24, border: `1px solid ${C.accent}33`, textAlign: 'center', marginBottom: 16 }}>
@@ -332,6 +373,16 @@ export default function Livreur({ user, onLogout }) {
         )}
       </div>
 
+      {/* QR Scanner Test */}
+      {showTestQR && (
+        <QRScanner
+          onScan={(data) => {
+            setShowTestQR(false);
+            setTestResult(data);
+          }}
+          onClose={() => setShowTestQR(false)}
+        />
+      )}
       {/* QR Scanner */}
       {showQR && (
         <QRScanner
