@@ -12,7 +12,7 @@ export default function QRScanner({ onScan, onClose }) {
 
     scanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      { fps: 10, qrbox: { width: 200, height: 200 } },
       (decodedText) => {
         if (!runningRef.current) return;
         runningRef.current = false;
@@ -22,7 +22,19 @@ export default function QRScanner({ onScan, onClose }) {
       },
       () => {}
     )
-      .then(() => { runningRef.current = true; })
+      .then(() => {
+        runningRef.current = true;
+        // Zoom automatique pour lire les QR codes à distance
+        const video = document.querySelector('#qr-reader video');
+        if (video?.srcObject) {
+          const track = video.srcObject.getVideoTracks()[0];
+          const caps = track?.getCapabilities?.();
+          if (caps?.zoom) {
+            const zoom = Math.min(caps.zoom.max, caps.zoom.min * 2.5);
+            track.applyConstraints({ advanced: [{ zoom }] }).catch(() => {});
+          }
+        }
+      })
       .catch(err => { setErreur('Camera inaccessible: ' + err); });
 
     return () => {
