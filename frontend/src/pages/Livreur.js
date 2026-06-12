@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getMissionsDisponibles, accepterMission, getMesMissions } from '../services/api';
+import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison } from '../services/api';
 import QRScanner from '../components/QRScanner';
+import QRCode from 'qrcode';
 
 const C = {
   bg: "#0F1923", surface: "#17242F", card: "#1E3040",
@@ -69,9 +70,12 @@ export default function Livreur({ user, onLogout }) {
 
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(0);
+  const [qrErreur, setQrErreur] = useState('');
+  const [livraisonErreur, setLivraisonErreur] = useState('');
   const [historique, setHistorique] = useState([]);
   const [showTestQR, setShowTestQR] = useState(false);
   const [testResult, setTestResult] = useState('');
+  const [qrTestImg, setQrTestImg] = useState('');
   const [position, setPosition] = useState(null);
   const [geoErreur, setGeoErreur] = useState('');
 
@@ -79,6 +83,8 @@ export default function Livreur({ user, onLogout }) {
     chargerMissions();
     chargerHistorique();
     demarrerGeo();
+    QRCode.toDataURL(JSON.stringify({ reference: 'MR-TEST-0000', partenaire_id: 0 }), { width: 220, margin: 2 })
+      .then(url => setQrTestImg(url));
   }, []);
 
   const chargerHistorique = async () => {
@@ -119,12 +125,29 @@ export default function Livreur({ user, onLogout }) {
     }
   };
 
-  const lancerScan = () => { setShowQR(true); };
+  const lancerScan = () => { setQrErreur(''); setShowQR(true); };
 
-  const confirmerScan = () => {
-    setShowQR(false);
+  const confirmerScan = (data) => {
+    if (!missionEnCours) return;
+    if (!data.includes(missionEnCours.reference)) {
+      setQrErreur(`QR code invalide — ce colis ne correspond pas à la mission (réf. ${missionEnCours.reference})`);
+      return;
+    }
+    setQrErreur('');
     if (etape === 'aller_chercher') setEtape('en_route');
     else if (etape === 'deposer') setEtape('termine');
+  };
+
+  const handleEnvoyerEvaluation = async () => {
+    try {
+      setLivraisonErreur('');
+      await confirmerLivraison(missionEnCours.id, { note_partenaire: stars });
+      await chargerHistorique();
+      setRated(true);
+    } catch (err) {
+      console.error(err);
+      setLivraisonErreur('Erreur lors de la confirmation — réessaie.');
+    }
   };
 
   const tabs = [
@@ -231,6 +254,13 @@ export default function Livreur({ user, onLogout }) {
                   })}
                 </div>
 
+                {/* Erreur QR */}
+                {qrErreur && (
+                  <div style={{ background: C.red + '22', borderRadius: 10, padding: 12, marginBottom: 12, border: `1px solid ${C.red}44`, fontSize: 12, color: C.red, fontFamily: 'sans-serif', textAlign: 'center' }}>
+                    ⚠️ {qrErreur}
+                  </div>
+                )}
+
                 {/* Actions */}
                 {etape === 'aller_chercher' && (
                   <button onClick={lancerScan} style={{ width: '100%', padding: 14, background: C.blue, border: 'none', borderRadius: 12, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
@@ -262,13 +292,14 @@ export default function Livreur({ user, onLogout }) {
                             </div>
                           ))}
                         </div>
-                        <button onClick={() => setRated(true)} disabled={stars === 0} style={{ width: '100%', padding: 10, background: stars === 0 ? C.border : C.accent, border: 'none', borderRadius: 10, color: stars === 0 ? C.muted : '#000', fontSize: 13, fontWeight: 700, cursor: stars === 0 ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                        {livraisonErreur && <div style={{ fontSize: 11, color: C.red, fontFamily: 'sans-serif', marginBottom: 8, textAlign: 'center' }}>{livraisonErreur}</div>}
+                        <button onClick={handleEnvoyerEvaluation} disabled={stars === 0} style={{ width: '100%', padding: 10, background: stars === 0 ? C.border : C.accent, border: 'none', borderRadius: 10, color: stars === 0 ? C.muted : '#000', fontSize: 13, fontWeight: 700, cursor: stars === 0 ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
                           Envoyer mon evaluation
                         </button>
                       </div>
                     )}
-                    {rated && <div style={{ fontSize: 12, color: C.green, fontFamily: 'sans-serif', marginBottom: 16 }}>Evaluation envoyee</div>}
-                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setRated(false); setStars(0); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                    {rated && <div style={{ fontSize: 12, color: C.green, fontFamily: 'sans-serif', marginBottom: 16 }}>Evaluation envoyee — gain credite !</div>}
+                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setRated(false); setStars(0); setQrErreur(''); setLivraisonErreur(''); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
                       Retour aux missions
                     </button>
                   </div>
@@ -326,6 +357,19 @@ export default function Livreur({ user, onLogout }) {
           <div style={{ padding: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 8 }}>🧪 Zone de test</div>
             <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 20 }}>Teste la caméra et le scanner QR sans avoir besoin d'une mission.</div>
+
+            {/* QR code de test à scanner */}
+            <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}`, marginBottom: 12, textAlign: 'center' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 6 }}>🏷️ QR code de démonstration</div>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 14 }}>Imprime ou affiche ce QR sur un autre écran, puis scanne-le avec le bouton ci-dessous.</div>
+              {qrTestImg && (
+                <div style={{ display: 'inline-block', background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                  <img src={qrTestImg} alt="QR test" style={{ display: 'block', width: 200, height: 200 }} />
+                </div>
+              )}
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace', marginBottom: 4 }}>Réf. : MR-TEST-0000</div>
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginBottom: 0 }}>Aucun SMS, aucune base de données</div>
+            </div>
 
             {/* Test QR Scanner */}
             <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}`, marginBottom: 12 }}>
@@ -388,7 +432,7 @@ export default function Livreur({ user, onLogout }) {
         <QRScanner
           onScan={(data) => {
             setShowQR(false);
-            confirmerScan(data);
+            setTimeout(() => confirmerScan(data), 0);
           }}
           onClose={() => setShowQR(false)}
         />

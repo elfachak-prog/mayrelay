@@ -6,6 +6,7 @@ import Livreur from './pages/Livreur';
 import Admin from './pages/Admin';
 import Paiements from './pages/Paiements';
 import Suivi from './pages/Suivi';
+import TestQR from './pages/TestQR';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -38,6 +39,7 @@ function App() {
     { key: 'colis', icon: '▦', label: 'Mes colis' },
     { key: 'casiers', icon: '⊞', label: 'Casiers' },
     { key: 'paiements', icon: '💶', label: 'Paiements' },
+    { key: 'testqr', icon: '🧪', label: 'Test QR' },
   ];
 
   return (
@@ -62,7 +64,8 @@ function App() {
       <div style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
         {ongletGlobal === 'casiers' && <Casiers user={user} />}
         {ongletGlobal === 'paiements' && <Paiements user={user} />}
-        {!['casiers', 'paiements'].includes(ongletGlobal) && (
+        {ongletGlobal === 'testqr' && <TestQR />}
+        {!['casiers', 'paiements', 'testqr'].includes(ongletGlobal) && (
           <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} />
         )}
       </div>
