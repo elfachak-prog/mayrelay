@@ -27,11 +27,7 @@ export default function QRScanner({ onScan, onClose }) {
     scannerRef.current = scanner;
 
     scanner.start(
-      {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
+      { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 280, height: 280 } },
       (decodedText) => {
         if (!runningRef.current) return;
