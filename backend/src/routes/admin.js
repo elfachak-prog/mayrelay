@@ -34,20 +34,40 @@ router.get('/stats', async (req, res) => {
 
 router.get('/partenaires', async (req, res) => {
   try {
-    const result = await db.query('SELECT id, nom, email, telephone, zone, horaires, statut, note, created_at FROM partenaires ORDER BY created_at DESC');
+    const result = await db.query('SELECT id, nom, email, telephone, zone, horaires, adresse, latitude, longitude, statut, note, created_at FROM partenaires ORDER BY created_at DESC');
     res.json({ partenaires: result.rows });
   } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
 router.post('/partenaires', async (req, res) => {
-  const { nom, email, mot_de_passe, telephone, zone, horaires } = req.body;
+  const { nom, email, mot_de_passe, telephone, zone, horaires, adresse, latitude, longitude } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
     const result = await db.query(
-      'INSERT INTO partenaires (nom, email, mot_de_passe, telephone, zone, horaires, statut) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nom, email, telephone, zone, horaires, statut',
-      [nom, email, hashedPassword, telephone, zone, horaires || '08:00-20:00', 'actif']
+      'INSERT INTO partenaires (nom, email, mot_de_passe, telephone, zone, horaires, adresse, latitude, longitude, statut) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, nom, email, telephone, zone, horaires, adresse, latitude, longitude, statut',
+      [nom, email, hashedPassword, telephone, zone, horaires || '08:00-20:00', adresse || null, latitude || null, longitude || null, 'actif']
     );
-    res.status(201).json({ message: 'Partenaire cree avec succes', partenaire: result.rows[0] });
+    res.status(201).json({ message: 'Partenaire cree', partenaire: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ message: 'Email deja utilise' });
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+router.put('/partenaires/:id', async (req, res) => {
+  const { nom, email, mot_de_passe, telephone, zone, horaires, adresse, latitude, longitude } = req.body;
+  try {
+    let query, params;
+    if (mot_de_passe) {
+      const hash = await bcrypt.hash(mot_de_passe, 10);
+      query = 'UPDATE partenaires SET nom=$1, email=$2, mot_de_passe=$3, telephone=$4, zone=$5, horaires=$6, adresse=$7, latitude=$8, longitude=$9 WHERE id=$10';
+      params = [nom, email, hash, telephone, zone, horaires, adresse || null, latitude || null, longitude || null, req.params.id];
+    } else {
+      query = 'UPDATE partenaires SET nom=$1, email=$2, telephone=$3, zone=$4, horaires=$5, adresse=$6, latitude=$7, longitude=$8 WHERE id=$9';
+      params = [nom, email, telephone, zone, horaires, adresse || null, latitude || null, longitude || null, req.params.id];
+    }
+    await db.query(query, params);
+    res.json({ message: 'Partenaire mis a jour' });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ message: 'Email deja utilise' });
     res.status(500).json({ message: 'Erreur serveur' });
@@ -59,6 +79,19 @@ router.put('/partenaires/:id/statut', async (req, res) => {
     const { statut } = req.body;
     await db.query('UPDATE partenaires SET statut = $1 WHERE id = $2', [statut, req.params.id]);
     res.json({ message: 'Statut mis a jour' });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+router.delete('/partenaires/:id', async (req, res) => {
+  try {
+    const enUsage = await db.query(
+      'SELECT COUNT(*) FROM missions WHERE partenaire_depart_id=$1 OR partenaire_destination_id=$1',
+      [req.params.id]
+    );
+    if (parseInt(enUsage.rows[0].count) > 0)
+      return res.status(400).json({ message: 'Ce partenaire est associe a des missions existantes' });
+    await db.query('DELETE FROM partenaires WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Partenaire supprime' });
   } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 

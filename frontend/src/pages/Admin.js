@@ -34,15 +34,19 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+const FORM_VIDE = { nom: '', email: '', mot_de_passe: '', telephone: '', zone: '', horaires: '08:00-20:00', adresse: '', latitude: '', longitude: '' };
+
 function GestionPartenaires() {
   const [partenaires, setPartenaires] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  
-  const [form, setForm] = useState({ nom: '', email: '', mot_de_passe: '', telephone: '', zone: '', horaires: '08:00-20:00' });
+  const [modal, setModal] = useState(null); // null | 'creer' | 'modifier'
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState(FORM_VIDE);
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
+  const [confirmSuppr, setConfirmSuppr] = useState(null);
 
   const zones = ['Mamoudzou Centre', 'Kaweni', 'Bandraboua', 'Koungou', 'Pamandzi', 'Dzaoudzi', 'Labattoir', 'Labattoir Centre', 'Boueni', 'Chiconi', 'Sada', 'Tsingoni'];
+  const inputStyle = { width: '100%', padding: '10px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif', background: '#FAFBFC', marginTop: 4 };
 
   useEffect(() => { charger(); }, []);
 
@@ -53,33 +57,55 @@ function GestionPartenaires() {
     } catch (err) { console.error(err); }
   };
 
-  const handleCreer = async () => {
-    if (!form.nom || !form.email || !form.mot_de_passe || !form.telephone || !form.zone) {
-      setMessage('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
+  const ouvrirCreer = () => { setForm(FORM_VIDE); setMessage(''); setModal('creer'); };
+
+  const ouvrirModifier = (p) => {
+    setEditId(p.id);
+    setForm({ nom: p.nom, email: p.email, mot_de_passe: '', telephone: p.telephone, zone: p.zone || '', horaires: p.horaires || '08:00-20:00', adresse: p.adresse || '', latitude: p.latitude ?? '', longitude: p.longitude ?? '' });
+    setMessage('');
+    setModal('modifier');
+  };
+
+  const fermerModal = () => { setModal(null); setEditId(null); setMessage(''); };
+
+  const handleSauvegarder = async () => {
+    if (!form.nom || !form.email || !form.telephone || !form.zone) { setMessage('Champs obligatoires manquants'); return; }
+    if (modal === 'creer' && !form.mot_de_passe) { setMessage('Le mot de passe est obligatoire à la création'); return; }
     setChargement(true);
     try {
-      await API.post('/admin/partenaires', form);
-      setMessage('');
-      setShowModal(false);
-      setForm({ nom: '', email: '', mot_de_passe: '', telephone: '', zone: '', horaires: '08:00-20:00' });
+      if (modal === 'creer') {
+        await API.post('/admin/partenaires', form);
+      } else {
+        await API.put(`/admin/partenaires/${editId}`, form);
+      }
+      fermerModal();
       charger();
-    } catch (err) {
-      setMessage(err.response?.data?.message || 'Erreur');
-    }
+    } catch (err) { setMessage(err.response?.data?.message || 'Erreur'); }
     setChargement(false);
   };
 
   const handleStatut = async (id, statut) => {
-    try {
-      await API.put(`/admin/partenaires/${id}/statut`, { statut });
-      charger();
-      
-    } catch (err) { console.error(err); }
+    try { await API.put(`/admin/partenaires/${id}/statut`, { statut }); charger(); }
+    catch (err) { console.error(err); }
   };
 
-  const inputStyle = { width: '100%', padding: '10px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif', background: '#FAFBFC', marginTop: 4 };
+  const handleSupprimer = async (id) => {
+    try {
+      await API.delete(`/admin/partenaires/${id}`);
+      setConfirmSuppr(null);
+      charger();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Impossible de supprimer ce partenaire');
+      setConfirmSuppr(null);
+    }
+  };
+
+  const champTexte = (label, key, placeholder, type = 'text') => (
+    <div key={key} style={{ marginBottom: 14 }}>
+      <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{label}</label>
+      <input type={type} style={inputStyle} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={placeholder} />
+    </div>
+  );
 
   return (
     <div>
@@ -88,7 +114,7 @@ function GestionPartenaires() {
           <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', margin: 0 }}>Partenaires</h2>
           <div style={{ fontSize: 13, color: '#888', marginTop: 2, fontFamily: 'sans-serif' }}>{partenaires.length} point(s) relais</div>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ background: C.teal, color: C.white, border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+        <button onClick={ouvrirCreer} style={{ background: C.teal, color: C.white, border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
           + Nouveau partenaire
         </button>
       </div>
@@ -97,7 +123,7 @@ function GestionPartenaires() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
-              {['Nom', 'Email', 'Telephone', 'Zone', 'Horaires', 'Statut', 'Actions'].map(h => (
+              {['Nom', 'Zone', 'Adresse', 'GPS', 'Horaires', 'Statut', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 16px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
@@ -105,22 +131,37 @@ function GestionPartenaires() {
           <tbody>
             {partenaires.map((p, i) => {
               const s = statutConfig[p.statut] || statutConfig.en_attente;
+              const hasGps = p.latitude && p.longitude;
               return (
                 <tr key={p.id} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
-                  <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>{p.nom}</td>
-                  <td style={{ padding: '13px 16px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{p.email}</td>
-                  <td style={{ padding: '13px 16px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{p.telephone}</td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>{p.nom}</div>
+                    <div style={{ fontSize: 11, color: '#999', fontFamily: 'sans-serif' }}>{p.email}</div>
+                  </td>
                   <td style={{ padding: '13px 16px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{p.zone}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{p.adresse || <span style={{ color: '#ccc' }}>—</span>}</td>
+                  <td style={{ padding: '13px 16px' }}>
+                    {hasGps ? (
+                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: C.teal }}>
+                        <div>{parseFloat(p.latitude).toFixed(5)}</div>
+                        <div>{parseFloat(p.longitude).toFixed(5)}</div>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 11, color: '#EF4444', fontFamily: 'sans-serif' }}>⚠ Non renseigné</span>
+                    )}
+                  </td>
                   <td style={{ padding: '13px 16px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{p.horaires}</td>
                   <td style={{ padding: '13px 16px' }}><Tag {...s} /></td>
                   <td style={{ padding: '13px 16px' }}>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button onClick={() => ouvrirModifier(p)} style={{ background: '#EFF6FF', color: C.blue, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Modifier</button>
                       {p.statut !== 'actif' && (
                         <button onClick={() => handleStatut(p.id, 'actif')} style={{ background: '#D1FAE5', color: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Activer</button>
                       )}
                       {p.statut === 'actif' && (
-                        <button onClick={() => handleStatut(p.id, 'suspendu')} style={{ background: '#FEE2E2', color: C.red, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Suspendre</button>
+                        <button onClick={() => handleStatut(p.id, 'suspendu')} style={{ background: '#FEF3C7', color: C.amber, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Suspendre</button>
                       )}
+                      <button onClick={() => setConfirmSuppr(p)} style={{ background: '#FEE2E2', color: C.red, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Supprimer</button>
                     </div>
                   </td>
                 </tr>
@@ -131,36 +172,64 @@ function GestionPartenaires() {
         {partenaires.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>Aucun partenaire pour l instant</div>}
       </div>
 
-      {showModal && (
-        <Modal title="Nouveau partenaire" onClose={() => { setShowModal(false); setMessage(''); }}>
-          {[
-            ['Nom du point relais *', 'nom', 'Aznovik Cyber', 'text'],
-            ['Email *', 'email', 'contact@email.com', 'email'],
-            ['Mot de passe *', 'mot_de_passe', '••••••••', 'password'],
-            ['Telephone *', 'telephone', '0639 XX XX XX', 'text'],
-          ].map(([label, key, placeholder, type]) => (
-            <div key={key} style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{label}</label>
-              <input type={type} style={inputStyle} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={placeholder} />
+      {/* Modal créer / modifier */}
+      {modal && (
+        <Modal title={modal === 'creer' ? 'Nouveau partenaire' : 'Modifier le partenaire'} onClose={fermerModal}>
+          <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 4 }}>
+            {champTexte('Nom du point relais *', 'nom', 'Aznovik Cyber')}
+            {champTexte('Email *', 'email', 'contact@email.com', 'email')}
+            {champTexte(modal === 'creer' ? 'Mot de passe *' : 'Nouveau mot de passe (laisser vide = inchangé)', 'mot_de_passe', '••••••••', 'password')}
+            {champTexte('Téléphone *', 'telephone', '0639 XX XX XX')}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>Zone / Quartier *</label>
+              <select style={{ ...inputStyle, appearance: 'none' }} value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value })}>
+                <option value="">Sélectionner une zone...</option>
+                {zones.map(z => <option key={z} value={z}>{z}</option>)}
+              </select>
             </div>
-          ))}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>Zone / Quartier *</label>
-            <select style={{ ...inputStyle, appearance: 'none' }} value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value })}>
-              <option value="">Selectionner une zone...</option>
-              {zones.map(z => <option key={z} value={z}>{z}</option>)}
-            </select>
+            {champTexte('Horaires', 'horaires', '08:00-20:00')}
+            {champTexte('Adresse', 'adresse', 'Rue de la République, Kaweni')}
+
+            <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', fontFamily: 'sans-serif', marginBottom: 10 }}>📍 Coordonnées GPS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>Latitude</label>
+                  <input type="number" step="any" style={{ ...inputStyle, fontFamily: 'monospace' }} value={form.latitude} onChange={e => setForm({ ...form, latitude: e.target.value })} placeholder="-12.78760" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>Longitude</label>
+                  <input type="number" step="any" style={{ ...inputStyle, fontFamily: 'monospace' }} value={form.longitude} onChange={e => setForm({ ...form, longitude: e.target.value })} placeholder="45.20970" />
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: '#888', fontFamily: 'sans-serif', marginTop: 8 }}>
+                💡 Obtenir les coordonnées : Google Maps → clic droit sur le lieu → copier lat/lng
+              </div>
+            </div>
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>Horaires</label>
-            <input style={inputStyle} value={form.horaires} onChange={e => setForm({ ...form, horaires: e.target.value })} placeholder="08:00-20:00" />
-          </div>
-          {message && <div style={{ background: '#FEE2E2', color: C.red, padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16, fontFamily: 'sans-serif' }}>{message}</div>}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => { setShowModal(false); setMessage(''); }} style={{ flex: 1, padding: 12, background: '#F0F3F5', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif', color: '#666' }}>Annuler</button>
-            <button onClick={handleCreer} disabled={chargement} style={{ flex: 1, padding: 12, background: C.teal, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', color: C.white }}>
-              {chargement ? 'Creation...' : 'Creer le partenaire'}
+
+          {message && <div style={{ background: '#FEE2E2', color: C.red, padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 14, fontFamily: 'sans-serif' }}>{message}</div>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button onClick={fermerModal} style={{ flex: 1, padding: 12, background: '#F0F3F5', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif', color: '#666' }}>Annuler</button>
+            <button onClick={handleSauvegarder} disabled={chargement} style={{ flex: 2, padding: 12, background: C.teal, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', color: C.white }}>
+              {chargement ? 'Enregistrement...' : (modal === 'creer' ? 'Créer le partenaire' : 'Enregistrer les modifications')}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal confirmation suppression */}
+      {confirmSuppr && (
+        <Modal title="Supprimer ce partenaire ?" onClose={() => setConfirmSuppr(null)}>
+          <div style={{ fontSize: 14, color: C.text, fontFamily: 'sans-serif', marginBottom: 8 }}>
+            Tu es sur le point de supprimer <strong>{confirmSuppr.nom}</strong>.
+          </div>
+          <div style={{ fontSize: 13, color: C.red, fontFamily: 'sans-serif', marginBottom: 24 }}>
+            Cette action est irréversible. Le partenaire ne peut pas être supprimé s'il est associé à des missions.
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setConfirmSuppr(null)} style={{ flex: 1, padding: 12, background: '#F0F3F5', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif', color: '#666' }}>Annuler</button>
+            <button onClick={() => handleSupprimer(confirmSuppr.id)} style={{ flex: 1, padding: 12, background: C.red, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', color: C.white }}>Supprimer définitivement</button>
           </div>
         </Modal>
       )}
