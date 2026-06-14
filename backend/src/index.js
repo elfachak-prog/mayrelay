@@ -37,10 +37,14 @@ app.use('/api/paiements', paiementsRoutes);
 app.use('/api/parametres', parametresRoutes);
 app.use('/api/suivi', suiviRoutes);
 
-cron.schedule('0 * * * *', () => {
-  console.log('Job cron - verification colis non recuperes');
-  verifierColisNonRecuperes();
-});
+if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
+  cron.schedule('0 * * * *', () => {
+    console.log('Job cron - verification colis non recuperes');
+    verifierColisNonRecuperes();
+  });
+} else {
+  console.log('Notifications automatiques desactivees (NOTIFICATIONS_ACTIVES=false)');
+}
 
 app.listen(PORT, () => {
   console.log('Serveur MayRelay demarre sur le port ' + PORT);
