@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison } from '../services/api';
 import QRScanner from '../components/QRScanner';
+import MapItineraire from '../components/MapItineraire';
 import QRCode from 'qrcode';
 
 const C = {
@@ -225,6 +226,18 @@ export default function Livreur({ user, onLogout }) {
                     {' · '}Gain: <span style={{ color: C.accent, fontWeight: 700 }}>{missionEnCours.gain_livreur}€</span>
                   </div>
                 </div>
+
+                {/* Carte itinéraire */}
+                {etape !== 'termine' && (
+                  <MapItineraire
+                    positionLivreur={position}
+                    destination={{
+                      lat: parseFloat(missionEnCours.lat_destination),
+                      lng: parseFloat(missionEnCours.lng_destination),
+                      nom: missionEnCours.partenaire_destination,
+                    }}
+                  />
+                )}
 
                 {/* Etapes */}
                 <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 16, marginBottom: 12 }}>
