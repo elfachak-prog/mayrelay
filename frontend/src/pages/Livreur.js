@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
@@ -151,6 +151,12 @@ export default function Livreur({ user, onLogout }) {
     }
   };
 
+  const destinationCarte = useMemo(() => missionEnCours ? {
+    lat: parseFloat(missionEnCours.lat_destination),
+    lng: parseFloat(missionEnCours.lng_destination),
+    nom: missionEnCours.partenaire_destination,
+  } : null, [missionEnCours]);
+
   const tabs = [
     { key: 'missions', icon: '🗺️', label: 'Missions' },
     { key: 'en_cours', icon: '🛵', label: 'En cours' },
@@ -231,11 +237,7 @@ export default function Livreur({ user, onLogout }) {
                 {etape !== 'termine' && (
                   <MapItineraire
                     positionLivreur={position}
-                    destination={{
-                      lat: parseFloat(missionEnCours.lat_destination),
-                      lng: parseFloat(missionEnCours.lng_destination),
-                      nom: missionEnCours.partenaire_destination,
-                    }}
+                    destination={destinationCarte}
                   />
                 )}
 

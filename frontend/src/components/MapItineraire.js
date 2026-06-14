@@ -11,7 +11,6 @@ export default function MapItineraire({ positionLivreur, destination }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const livreurMarkerRef = useRef(null);
-  const initDoneRef = useRef(false);
   const [infos, setInfos] = useState(null);
   const [routeEtat, setRouteEtat] = useState('idle'); // idle | loading | ok | erreur
 
@@ -28,7 +27,6 @@ export default function MapItineraire({ positionLivreur, destination }) {
       map.remove();
       mapRef.current = null;
       livreurMarkerRef.current = null;
-      initDoneRef.current = false;
     };
   }, []);
 
@@ -45,44 +43,61 @@ export default function MapItineraire({ positionLivreur, destination }) {
     }
   }, [positionLivreur]);
 
-  // Place le marqueur destination + trace l'itinéraire (une seule fois)
+  // Stocke la position livreur courante dans un ref pour l'accès depuis la closure OSRM
+  const positionRef = useRef(positionLivreur);
+  positionRef.current = positionLivreur;
+
+  // Place le marqueur destination + trace l'itinéraire (déclenché une fois quand destination est connue)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !positionLivreur || !destination?.lat || !destination?.lng) return;
-    if (initDoneRef.current) return;
-    initDoneRef.current = true;
+    if (!map || !destination?.lat || !destination?.lng) return;
 
     L.circleMarker([destination.lat, destination.lng], {
       radius: 9, fillColor: C.green, color: '#fff', weight: 3, fillOpacity: 1,
     }).addTo(map).bindPopup(destination.nom || 'Destination');
 
-    map.fitBounds(
-      L.latLngBounds(
-        [positionLivreur.lat, positionLivreur.lng],
-        [destination.lat, destination.lng]
-      ),
-      { padding: [55, 55] }
-    );
-
     setRouteEtat('loading');
-    fetch(
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${positionLivreur.lng},${positionLivreur.lat};${destination.lng},${destination.lat}` +
-      `?overview=full&geometries=geojson`
-    )
-      .then(r => r.json())
-      .then(data => {
-        if (!data.routes?.[0]) { setRouteEtat('erreur'); return; }
-        const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-        L.polyline(coords, { color: C.blue, weight: 5, opacity: 0.85 }).addTo(map);
-        setInfos({
-          distance: (data.routes[0].distance / 1000).toFixed(1),
-          duree: Math.round(data.routes[0].duration / 60),
+    let cancelled = false;
+
+    const doFetch = () => {
+      const pos = positionRef.current;
+      const url =
+        `https://router.project-osrm.org/route/v1/driving/` +
+        `${pos ? pos.lng : destination.lng},${pos ? pos.lat : destination.lat};` +
+        `${destination.lng},${destination.lat}` +
+        `?overview=full&geometries=geojson`;
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return;
+          if (!data.routes?.[0]) { setRouteEtat('erreur'); return; }
+          const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          L.polyline(coords, { color: C.blue, weight: 5, opacity: 0.85 }).addTo(map);
+          // Ajuster la vue pour inclure la polyline complète
+          if (positionRef.current) {
+            map.fitBounds(
+              L.latLngBounds(
+                [positionRef.current.lat, positionRef.current.lng],
+                [destination.lat, destination.lng]
+              ),
+              { padding: [55, 55] }
+            );
+          }
+          setInfos({
+            distance: (data.routes[0].distance / 1000).toFixed(1),
+            duree: Math.round(data.routes[0].duration / 60),
+          });
+          setRouteEtat('ok');
+        })
+        .catch(() => {
+          if (!cancelled) setRouteEtat('erreur');
         });
-        setRouteEtat('ok');
-      })
-      .catch(() => setRouteEtat('erreur'));
-  }, [positionLivreur, destination]);
+    };
+
+    // Délai court pour laisser la position GPS s'établir
+    const timer = setTimeout(doFetch, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [destination]);
 
   if (!positionLivreur) {
     return (
