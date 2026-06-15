@@ -20,5 +20,7 @@ export const getMissionsDisponibles = () => API.get('/missions/disponibles');
 export const accepterMission = (id) => API.put(`/missions/${id}/accepter`);
 export const confirmerLivraison = (id, data) => API.put(`/missions/${id}/confirmer`, data);
 export const getMesMissions = () => API.get('/missions/mes-missions');
+export const getProfilLivreur = () => API.get('/livreurs/profil');
+export const updatePhotoLivreur = (photo_url) => API.put('/livreurs/profil/photo', { photo_url });
 
 export default API;

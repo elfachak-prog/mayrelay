@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison } from '../services/api';
+import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import QRCode from 'qrcode';
@@ -79,14 +79,25 @@ export default function Livreur({ user, onLogout }) {
   const [qrTestImg, setQrTestImg] = useState('');
   const [position, setPosition] = useState(null);
   const [geoErreur, setGeoErreur] = useState('');
+  const [profil, setProfil] = useState(null);
+  const [editPhoto, setEditPhoto] = useState(false);
+  const [photoInput, setPhotoInput] = useState('');
 
   useEffect(() => {
     chargerMissions();
     chargerHistorique();
+    chargerProfil();
     demarrerGeo();
     QRCode.toDataURL(JSON.stringify({ reference: 'MR-TEST-0000', partenaire_id: 0 }), { width: 220, margin: 2 })
       .then(url => setQrTestImg(url));
   }, []);
+
+  const chargerProfil = async () => {
+    try {
+      const res = await getProfilLivreur();
+      setProfil(res.data.profil);
+    } catch (err) { console.error(err); }
+  };
 
   const chargerHistorique = async () => {
     try {
@@ -162,7 +173,7 @@ export default function Livreur({ user, onLogout }) {
     { key: 'en_cours', icon: '🛵', label: 'En cours' },
     { key: 'historique', icon: '📋', label: 'Historique' },
     { key: 'gains', icon: '💰', label: 'Gains' },
-    { key: 'test', icon: '🧪', label: 'Test' },
+    { key: 'profil', icon: '👤', label: 'Profil' },
   ];
 
   return (
@@ -418,6 +429,95 @@ export default function Livreur({ user, onLogout }) {
             </div>
           </div>
         )}
+        {onglet === 'profil' && (
+          <div style={{ padding: 16 }}>
+            {/* Avatar + nom */}
+            <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 28, border: `1px solid ${C.border}`, textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
+                {profil?.photo_url ? (
+                  <img src={profil.photo_url} alt="avatar" style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${C.accent}` }} onError={e => { e.target.style.display = 'none'; }} />
+                ) : (
+                  <div style={{ width: 88, height: 88, borderRadius: '50%', background: `linear-gradient(135deg, ${C.accent}, #E84A2A)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#fff', border: `3px solid ${C.accent}33` }}>
+                    {(profil?.nom || user.nom || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div onClick={() => { setEditPhoto(true); setPhotoInput(profil?.photo_url || ''); }} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>✏️</div>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif', marginBottom: 4 }}>{profil?.nom || user.nom}</div>
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>
+                {profil?.zone && <span style={{ marginRight: 8 }}>📍 {profil.zone}</span>}
+                {profil?.vehicule && <span>🛵 {profil.vehicule}</span>}
+              </div>
+            </div>
+
+            {/* 3 stat cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+              <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: C.accent, fontFamily: 'Georgia, serif' }}>{profil ? Number(profil.nb_missions) : '—'}</div>
+                <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Missions effectuées</div>
+              </div>
+              <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: C.green, fontFamily: 'Georgia, serif' }}>{profil ? Number(profil.gains_totaux).toFixed(2) + '€' : '—'}</div>
+                <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Gains totaux</div>
+              </div>
+              <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: C.blue, fontFamily: 'Georgia, serif' }}>
+                  {profil && Number(profil.note_moyenne) > 0 ? Number(profil.note_moyenne).toFixed(1) + ' ⭐' : '—'}
+                </div>
+                <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Note moyenne</div>
+              </div>
+            </div>
+
+            {/* Infos du compte */}
+            <div style={{ background: C.card, borderRadius: 16, padding: 16, border: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 12 }}>Informations du compte</div>
+              {[
+                { label: 'Email', value: profil?.email },
+                { label: 'Téléphone', value: profil?.telephone || '—' },
+                { label: 'Zone', value: profil?.zone || '—' },
+                { label: 'Véhicule', value: profil?.vehicule || '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>{label}</div>
+                  <div style={{ fontSize: 12, color: C.white, fontFamily: 'sans-serif', textAlign: 'right' }}>{value}</div>
+                </div>
+              ))}
+              <button onClick={chargerProfil} style={{ width: '100%', marginTop: 4, padding: '10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, cursor: 'pointer', fontFamily: 'sans-serif' }}>↻ Actualiser</button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal photo */}
+        {editPhoto && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>Modifier la photo</div>
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 10 }}>Colle l'URL de ton image (ex: depuis Google Photos, Imgur…)</div>
+              <input
+                value={photoInput}
+                onChange={e => setPhotoInput(e.target.value)}
+                placeholder="https://..."
+                style={{ width: '100%', padding: '10px 12px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, fontFamily: 'sans-serif', boxSizing: 'border-box', outline: 'none', marginBottom: 16 }}
+              />
+              {photoInput && (
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <img src={photoInput} alt="preview" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${C.accent}` }} onError={e => { e.target.style.opacity = 0.2; }} />
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setEditPhoto(false)} style={{ flex: 1, padding: 12, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+                <button onClick={async () => {
+                  try {
+                    await updatePhotoLivreur(photoInput);
+                    await chargerProfil();
+                    setEditPhoto(false);
+                  } catch (err) { console.error(err); }
+                }} style={{ flex: 2, padding: 12, background: C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Enregistrer</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {onglet === 'gains' && (
           <div style={{ padding: 16 }}>
             <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 24, border: `1px solid ${C.accent}33`, textAlign: 'center', marginBottom: 16 }}>

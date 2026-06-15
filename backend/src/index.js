@@ -12,6 +12,7 @@ const adminRoutes = require('./routes/admin');
 const paiementsRoutes = require('./routes/paiements');
 const parametresRoutes = require('./routes/parametres');
 const suiviRoutes = require('./routes/suivi');
+const livreursRoutes = require('./routes/livreurs');
 const { verifierColisNonRecuperes } = require('./services/notifications');
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/parametres', parametresRoutes);
 app.use('/api/suivi', suiviRoutes);
+app.use('/api/livreurs', livreursRoutes);
 
 if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
   cron.schedule('0 * * * *', () => {
@@ -46,6 +48,14 @@ if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
   console.log('Notifications automatiques desactivees (NOTIFICATIONS_ACTIVES=false)');
 }
 
-app.listen(PORT, () => {
+const db = require('./config/database');
+
+app.listen(PORT, async () => {
   console.log('Serveur MayRelay demarre sur le port ' + PORT);
+  try {
+    await db.query('ALTER TABLE livreurs ADD COLUMN IF NOT EXISTS photo_url TEXT');
+    console.log('Migration livreurs.photo_url OK');
+  } catch (err) {
+    console.error('Migration photo_url:', err.message);
+  }
 });
