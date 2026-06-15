@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import API from '../services/api';
 import Parametres from './Parametres';
 import Finance from './Finance';
+import GestionSMS from './Sms';
 
 const C = {
   bg: "#F0F2F5", white: "#FFFFFF", navy: "#0B1F3A",
@@ -388,8 +389,9 @@ export default function Admin({ user, onLogout }) {
     { key: 'partenaires', icon: '🏪', label: 'Partenaires' },
     { key: 'livreurs', icon: '🛵', label: 'Livreurs' },
     { key: 'colis', icon: '📦', label: 'Colis' },
-    { key: 'parametres', icon: '⚙️', label: 'Parametres' },
     { key: 'finance', icon: '💶', label: 'Finance' },
+    { key: 'sms', icon: '💬', label: 'SMS Twilio' },
+    { key: 'parametres', icon: '⚙️', label: 'Paramètres' },
   ];
 
   return (
@@ -572,6 +574,7 @@ export default function Admin({ user, onLogout }) {
         {onglet === 'colis' && <GestionColis />}
         {onglet === 'parametres' && <Parametres />}
         {onglet === 'finance' && <Finance />}
+        {onglet === 'sms' && <GestionSMS />}
       </div>
     </div>
   );

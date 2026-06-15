@@ -1,4 +1,5 @@
 const twilio = require('twilio');
+const db = require('./database');
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -13,7 +14,32 @@ const formaterNumero = (numero) => {
   return '+' + nettoye;
 };
 
+const notificationsActives = async () => {
+  try {
+    const res = await db.query("SELECT valeur FROM config WHERE cle = 'notifications_actives'");
+    if (res.rows.length > 0) return res.rows[0].valeur === 'true';
+  } catch (e) {}
+  return process.env.NOTIFICATIONS_ACTIVES !== 'false';
+};
+
+const renderTemplate = async (cle, vars = {}) => {
+  try {
+    const res = await db.query('SELECT contenu FROM sms_templates WHERE cle = $1', [cle]);
+    if (res.rows.length === 0) return null;
+    let msg = res.rows[0].contenu;
+    Object.entries(vars).forEach(([k, v]) => {
+      msg = msg.replace(new RegExp(`\\{${k}\\}`, 'g'), v || '');
+    });
+    return msg;
+  } catch (e) { return null; }
+};
+
 const envoyerSMS = async (telephone, message) => {
+  const actives = await notificationsActives();
+  if (!actives) {
+    console.log('SMS desactivees (config) - non envoye vers:', telephone);
+    return { succes: false, desactive: true };
+  }
   try {
     const numeroFormate = formaterNumero(telephone);
     console.log('Envoi SMS vers:', numeroFormate);
@@ -30,4 +56,4 @@ const envoyerSMS = async (telephone, message) => {
   }
 };
 
-module.exports = { envoyerSMS };
+module.exports = { envoyerSMS, renderTemplate, notificationsActives };
