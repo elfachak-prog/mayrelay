@@ -415,21 +415,153 @@ export default function Admin({ user, onLogout }) {
       <div style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
         {onglet === 'dashboard' && (
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: C.navy, margin: '0 0 8px', fontFamily: 'Georgia, serif' }}>Bonjour, {user.nom} 👑</h1>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 28 }}>Panneau d administrateur MayRelay</div>
-            {stats && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-                {[
-                  { icon: '🏪', label: 'Partenaires', value: stats.partenaires, color: C.teal },
-                  { icon: '🛵', label: 'Livreurs', value: stats.livreurs, color: C.blue },
-                  { icon: '📦', label: 'Colis total', value: stats.colis, color: C.amber },
-                  { icon: '🚀', label: 'Missions', value: stats.missions, color: C.green },
-                ].map(s => (
-                  <div key={s.label} style={{ background: C.white, borderRadius: 16, padding: '22px 24px', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.04)', cursor: 'pointer' }} onClick={() => setOnglet(s.label.toLowerCase())}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                    <div style={{ fontSize: 32, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif' }}>{s.value}</div>
-                    <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{s.label}</div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: C.navy, margin: '0 0 4px', fontFamily: 'Georgia, serif' }}>Bonjour, {user.nom} 👑</h1>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 28 }}>Tableau de bord MayRelay</div>
+
+            {stats ? (
+              <>
+                {/* ── 4 stat cards ─────────────────────────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+                  {[
+                    {
+                      icon: '📦', label: 'Colis livrés', value: stats.colis_livres,
+                      sub: `${stats.colis_total} au total`,
+                      color: C.teal, bg: '#F0FDFB',
+                    },
+                    {
+                      icon: '💶', label: 'Revenus totaux', value: `${Number(stats.revenus_total).toFixed(2)} €`,
+                      sub: `${Number(stats.revenus_ce_mois).toFixed(2)} € ce mois`,
+                      color: C.green, bg: '#F0FDF4',
+                    },
+                    {
+                      icon: '🛵', label: 'Livreurs actifs', value: stats.livreurs_actifs,
+                      sub: `${stats.livreurs} inscrits au total`,
+                      color: C.blue, bg: '#EFF6FF',
+                    },
+                    {
+                      icon: '🚀', label: 'Missions terminées', value: stats.missions_terminees,
+                      sub: `${stats.partenaires} partenaires`,
+                      color: C.amber, bg: '#FFFBEB',
+                    },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: C.white, borderRadius: 16, padding: '20px 22px', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{s.icon}</div>
+                      </div>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', lineHeight: 1 }}>{s.value}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#444', marginTop: 4, fontFamily: 'sans-serif' }}>{s.label}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontFamily: 'sans-serif' }}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Graphique activité 7 jours ───────────────────── */}
+                {stats.activite_semaine && stats.activite_semaine.length > 0 && (() => {
+                  const maxColis = Math.max(...stats.activite_semaine.map(j => j.nb_colis), 1);
+                  const jours = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+                  return (
+                    <div style={{ background: C.white, borderRadius: 16, padding: '24px 28px', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.04)', marginBottom: 28 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                        <div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif' }}>Activité des 7 derniers jours</div>
+                          <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>Colis créés par jour</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>
+                          Total : <strong style={{ color: C.teal }}>{stats.activite_semaine.reduce((s, j) => s + j.nb_colis, 0)} colis</strong>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
+                        {stats.activite_semaine.map((j, i) => {
+                          const pct = maxColis === 0 ? 0 : Math.round((j.nb_colis / maxColis) * 100);
+                          const date = new Date(j.jour);
+                          const isToday = new Date().toDateString() === date.toDateString();
+                          return (
+                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                              {j.nb_colis > 0 && (
+                                <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? C.teal : C.muted, fontFamily: 'sans-serif' }}>{j.nb_colis}</div>
+                              )}
+                              <div style={{ width: '100%', position: 'relative', flex: 1, display: 'flex', alignItems: 'flex-end' }}>
+                                <div
+                                  title={`${j.nb_colis} colis — ${Number(j.revenus).toFixed(2)} €`}
+                                  style={{
+                                    width: '100%',
+                                    height: `${Math.max(pct, j.nb_colis > 0 ? 8 : 4)}%`,
+                                    background: isToday
+                                      ? `linear-gradient(to top, ${C.teal}, #20D5BF)`
+                                      : j.nb_colis > 0
+                                        ? `linear-gradient(to top, #CBD5E1, #E2E8F0)`
+                                        : '#F1F5F9',
+                                    borderRadius: '6px 6px 0 0',
+                                    transition: 'height 0.3s ease',
+                                    minHeight: 4,
+                                  }}
+                                />
+                              </div>
+                              <div style={{ fontSize: 10, color: isToday ? C.teal : C.muted, fontFamily: 'sans-serif', fontWeight: isToday ? 700 : 400 }}>
+                                {jours[date.getDay()]}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Dernières transactions ────────────────────────── */}
+                {stats.dernieres_transactions && stats.dernieres_transactions.length > 0 && (
+                  <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                    <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif' }}>Dernières transactions</div>
+                        <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>10 paiements les plus récents</div>
+                      </div>
+                      <button onClick={() => setOnglet('finance')} style={{ fontSize: 12, color: C.teal, background: 'transparent', border: `1px solid ${C.teal}`, borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 600 }}>Voir tout →</button>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC' }}>
+                          {['Référence', 'Partenaire', 'Destinataire', 'Montant', 'Livreur', 'Date'].map(h => (
+                            <th key={h} style={{ padding: '10px 20px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.dernieres_transactions.map((t, i) => (
+                          <tr key={t.id} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
+                            <td style={{ padding: '13px 20px', fontFamily: 'monospace', fontSize: 12, color: C.teal, fontWeight: 600 }}>{t.reference}</td>
+                            <td style={{ padding: '13px 20px', fontSize: 12, color: '#444', fontFamily: 'sans-serif' }}>{t.partenaire_nom}</td>
+                            <td style={{ padding: '13px 20px', fontSize: 12, fontWeight: 600, color: C.navy, fontFamily: 'sans-serif' }}>{t.nom_destinataire}</td>
+                            <td style={{ padding: '13px 20px' }}>
+                              <span style={{ fontWeight: 700, color: C.green, fontSize: 13, fontFamily: 'sans-serif' }}>{Number(t.montant_total).toFixed(2)} €</span>
+                            </td>
+                            <td style={{ padding: '13px 20px' }}>
+                              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, fontFamily: 'sans-serif', fontWeight: 700, background: t.avec_livreur ? '#DBEAFE' : '#F1F5F9', color: t.avec_livreur ? C.blue : C.muted }}>
+                                {t.avec_livreur ? '🛵 Oui' : 'Non'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '13px 20px', fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>
+                              {new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                )}
+
+                {/* État vide si pas encore de transactions */}
+                {(!stats.dernieres_transactions || stats.dernieres_transactions.length === 0) && (
+                  <div style={{ background: C.white, borderRadius: 16, padding: 40, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
+                    <div style={{ fontSize: 14, color: '#666', fontFamily: 'sans-serif' }}>Aucune transaction pour l'instant</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+                {[1,2,3,4].map(i => (
+                  <div key={i} style={{ background: C.white, borderRadius: 16, padding: '22px 24px', border: `1px solid ${C.border}`, height: 100, background: 'linear-gradient(90deg, #F8FAFC 25%, #F1F5F9 50%, #F8FAFC 75%)', backgroundSize: '200% 100%' }} />
                 ))}
               </div>
             )}

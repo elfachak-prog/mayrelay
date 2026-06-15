@@ -19,17 +19,58 @@ router.post('/login', async (req, res) => {
 
 router.get('/stats', async (req, res) => {
   try {
-    const partenaires = await db.query('SELECT COUNT(*) FROM partenaires');
-    const livreurs = await db.query('SELECT COUNT(*) FROM livreurs');
-    const colis = await db.query('SELECT COUNT(*) FROM colis');
-    const missions = await db.query('SELECT COUNT(*) FROM missions');
+    const [globales, activite, transactions] = await Promise.all([
+      db.query(`
+        SELECT
+          (SELECT COUNT(*) FROM partenaires)::int                                              AS partenaires,
+          (SELECT COUNT(*) FROM livreurs)::int                                                 AS livreurs,
+          (SELECT COUNT(*) FROM livreurs WHERE statut = 'actif')::int                          AS livreurs_actifs,
+          (SELECT COUNT(*) FROM colis)::int                                                    AS colis_total,
+          (SELECT COUNT(*) FROM colis WHERE statut = 'paye')::int                              AS colis_livres,
+          (SELECT COUNT(*) FROM missions WHERE statut = 'termine')::int                        AS missions_terminees,
+          (SELECT COALESCE(SUM(montant_total), 0) FROM paiements)::numeric                    AS revenus_total,
+          (SELECT COALESCE(SUM(montant_total), 0) FROM paiements
+           WHERE created_at >= date_trunc('month', NOW()))::numeric                            AS revenus_ce_mois
+      `),
+      db.query(`
+        WITH jours AS (
+          SELECT generate_series(
+            (NOW() - INTERVAL '6 days')::date,
+            NOW()::date,
+            '1 day'::interval
+          )::date AS jour
+        )
+        SELECT
+          j.jour,
+          COUNT(c.id)::int                          AS nb_colis,
+          COALESCE(SUM(c.prix::numeric), 0)::numeric AS revenus
+        FROM jours j
+        LEFT JOIN colis c ON DATE(c.created_at) = j.jour
+        GROUP BY j.jour
+        ORDER BY j.jour
+      `),
+      db.query(`
+        SELECT
+          p.id, p.montant_total, p.avec_livreur, p.created_at,
+          c.reference, c.nom_destinataire, c.type,
+          pat.nom AS partenaire_nom
+        FROM paiements p
+        JOIN colis c   ON p.colis_id      = c.id
+        JOIN partenaires pat ON p.partenaire_id = pat.id
+        ORDER BY p.created_at DESC
+        LIMIT 10
+      `)
+    ]);
+
     res.json({
-      partenaires: parseInt(partenaires.rows[0].count),
-      livreurs: parseInt(livreurs.rows[0].count),
-      colis: parseInt(colis.rows[0].count),
-      missions: parseInt(missions.rows[0].count)
+      ...globales.rows[0],
+      activite_semaine: activite.rows,
+      dernieres_transactions: transactions.rows
     });
-  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
 });
 
 router.get('/partenaires', async (req, res) => {
