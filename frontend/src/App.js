@@ -7,6 +7,7 @@ import Admin from './pages/Admin';
 import Paiements from './pages/Paiements';
 import Suivi from './pages/Suivi';
 import TestQR from './pages/TestQR';
+import Reception from './pages/Reception';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -36,6 +37,7 @@ function App() {
   const navItems = [
     { key: 'dashboard', icon: '◈', label: 'Tableau de bord' },
     { key: 'nouveau', icon: '+', label: 'Nouvel envoi' },
+    { key: 'reception', icon: '📥', label: 'Réception' },
     { key: 'colis', icon: '▦', label: 'Mes colis' },
     { key: 'casiers', icon: '⊞', label: 'Casiers' },
     { key: 'paiements', icon: '💶', label: 'Paiements' },
@@ -65,7 +67,8 @@ function App() {
         {ongletGlobal === 'casiers' && <Casiers user={user} />}
         {ongletGlobal === 'paiements' && <Paiements user={user} />}
         {ongletGlobal === 'testqr' && <TestQR />}
-        {!['casiers', 'paiements', 'testqr'].includes(ongletGlobal) && (
+        {ongletGlobal === 'reception' && <Reception />}
+        {!['casiers', 'paiements', 'testqr', 'reception'].includes(ongletGlobal) && (
           <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} />
         )}
       </div>
