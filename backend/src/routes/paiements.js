@@ -60,6 +60,40 @@ router.post('/enregistrer/:colis_id', auth, async (req, res) => {
   }
 });
 
+router.get('/stats-partenaire', auth, async (req, res) => {
+  try {
+    const debut_mois = new Date();
+    debut_mois.setDate(1); debut_mois.setHours(0, 0, 0, 0);
+
+    const soldeRes = await db.query(`
+      SELECT COALESCE(SUM(part_partenaire_exp + part_partenaire_rec), 0) as solde
+      FROM paiements
+      WHERE partenaire_id = $1 AND statut = 'encaisse'
+    `, [req.user.id]);
+
+    const revenusRes = await db.query(`
+      SELECT COALESCE(SUM(part_partenaire_exp + part_partenaire_rec), 0) as revenus
+      FROM paiements
+      WHERE partenaire_id = $1 AND created_at >= $2
+    `, [req.user.id, debut_mois]);
+
+    const colisRes = await db.query(`
+      SELECT COUNT(*) as nb
+      FROM colis
+      WHERE partenaire_id = $1 AND created_at >= $2
+    `, [req.user.id, debut_mois]);
+
+    res.json({
+      solde_disponible: parseFloat(soldeRes.rows[0].solde).toFixed(2),
+      revenus_mois: parseFloat(revenusRes.rows[0].revenus).toFixed(2),
+      colis_mois: parseInt(colisRes.rows[0].nb),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 router.get('/mes-paiements', auth, async (req, res) => {
   try {
     const result = await db.query(`
