@@ -10,12 +10,13 @@ import TestQR from './pages/TestQR';
 import Reception from './pages/Reception';
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const query = '(max-width: 767px)';
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    const mq = window.matchMedia(query);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
   return isMobile;
 }
@@ -55,83 +56,71 @@ function App() {
     { key: 'paiements', icon: '💶', label: 'Paiements' },
   ];
 
-  if (isMobile) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#F4F7FA', fontFamily: 'sans-serif' }}>
-        {/* Header mobile */}
-        <div style={{ background: '#0D1F2D', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
-            <div style={{ fontSize: 9, color: '#4A7B94', letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
+  // Layout unifié — sidebar masquée sur mobile, bottom nav fixe sur mobile (identique à Livreur.js)
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F4F7FA', fontFamily: 'sans-serif' }}>
+
+      {/* Sidebar — desktop uniquement */}
+      {!isMobile && (
+        <div style={{ width: 220, background: '#0D1F2D', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+            <div style={{ fontSize: 10, color: '#4A7B94', marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-            <div style={{ fontSize: 11, color: '#fff' }}>{user.nom}</div>
-            <div onClick={handleLogout} style={{ fontSize: 10, color: '#E8613A', cursor: 'pointer' }}>Déconnexion</div>
+          <div style={{ flex: 1, padding: '12px 10px' }}>
+            {[...navItems, { key: 'testqr', icon: '🧪', label: 'Test QR' }].map(item => (
+              <div key={item.key} onClick={() => setOngletGlobal(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: ongletGlobal === item.key ? 'rgba(232,97,58,0.15)' : 'transparent', borderLeft: ongletGlobal === item.key ? '3px solid #E8613A' : '3px solid transparent', color: ongletGlobal === item.key ? '#fff' : '#4A7B94', fontSize: 14 }}>
+                <span>{item.icon}</span><span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>{user.nom}</div>
+            <div onClick={handleLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
           </div>
         </div>
+      )}
+
+      {/* Colonne principale */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+        {/* Header — mobile uniquement */}
+        {isMobile && (
+          <div style={{ background: '#0D1F2D', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+              <div style={{ fontSize: 9, color: '#4A7B94', letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              <div style={{ fontSize: 11, color: '#fff' }}>{user.nom}</div>
+              <div onClick={handleLogout} style={{ fontSize: 10, color: '#E8613A', cursor: 'pointer' }}>Déconnexion</div>
+            </div>
+          </div>
+        )}
 
         {/* Contenu */}
-        <div style={{ flex: 1, padding: '20px 16px', overflowY: 'auto', paddingBottom: 80 }}>
+        <div style={{ flex: 1, padding: isMobile ? '20px 16px' : '40px 48px', paddingBottom: isMobile ? 80 : undefined, overflowY: 'auto' }}>
           {ongletGlobal === 'casiers' && <Casiers user={user} />}
           {ongletGlobal === 'paiements' && <Paiements user={user} />}
           {ongletGlobal === 'testqr' && <TestQR />}
           {ongletGlobal === 'reception' && <Reception />}
           {!['casiers', 'paiements', 'testqr', 'reception'].includes(ongletGlobal) && (
-            <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={true} />
+            <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={isMobile} />
           )}
         </div>
+      </div>
 
-        {/* Bottom nav */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0D1F2D', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', zIndex: 100 }}>
-          {navItems.map(item => (
-            <div
-              key={item.key}
-              onClick={() => setOngletGlobal(item.key)}
-              style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '8px 4px', cursor: 'pointer',
-                color: ongletGlobal === item.key ? '#E8613A' : '#4A7B94',
-                borderTop: ongletGlobal === item.key ? '2px solid #E8613A' : '2px solid transparent',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>{item.icon}</span>
-              <span style={{ fontSize: 9, marginTop: 2, letterSpacing: 0.5 }}>{item.label}</span>
+      {/* Bottom nav — mobile uniquement, identique à Livreur.js */}
+      {isMobile && (
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#0D1F2D', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', zIndex: 100 }}>
+          {navItems.map(t => (
+            <div key={t.key} onClick={() => setOngletGlobal(t.key)} style={{ flex: 1, padding: '12px 0 10px', textAlign: 'center', cursor: 'pointer', borderTop: ongletGlobal === t.key ? '2px solid #E8613A' : '2px solid transparent' }}>
+              <div style={{ fontSize: 20 }}>{t.icon}</div>
+              <div style={{ fontSize: 10, color: ongletGlobal === t.key ? '#E8613A' : '#4A7B94', marginTop: 2, fontFamily: 'sans-serif', fontWeight: ongletGlobal === t.key ? 700 : 400 }}>{t.label}</div>
             </div>
           ))}
         </div>
-      </div>
-    );
-  }
-
-  // Layout desktop (sidebar)
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F4F7FA', fontFamily: 'sans-serif' }}>
-      <div style={{ width: 220, background: '#0D1F2D', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
-          <div style={{ fontSize: 10, color: '#4A7B94', marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
-        </div>
-        <div style={{ flex: 1, padding: '12px 10px' }}>
-          {[...navItems, { key: 'testqr', icon: '🧪', label: 'Test QR' }].map(item => (
-            <div key={item.key} onClick={() => setOngletGlobal(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: ongletGlobal === item.key ? 'rgba(232,97,58,0.15)' : 'transparent', borderLeft: ongletGlobal === item.key ? '3px solid #E8613A' : '3px solid transparent', color: ongletGlobal === item.key ? '#fff' : '#4A7B94', fontSize: 14 }}>
-              <span>{item.icon}</span><span>{item.label}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>{user.nom}</div>
-          <div onClick={handleLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
-        </div>
-      </div>
-      <div style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
-        {ongletGlobal === 'casiers' && <Casiers user={user} />}
-        {ongletGlobal === 'paiements' && <Paiements user={user} />}
-        {ongletGlobal === 'testqr' && <TestQR />}
-        {ongletGlobal === 'reception' && <Reception />}
-        {!['casiers', 'paiements', 'testqr', 'reception'].includes(ongletGlobal) && (
-          <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={false} />
-        )}
-      </div>
+      )}
     </div>
   );
 }
