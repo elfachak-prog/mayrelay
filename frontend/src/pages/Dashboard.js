@@ -41,7 +41,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
   const chargerColis = async () => {
     try {
       const res = await getMesColis();
-      setColis(res.data.colis);
+      setColis(res.data.colis || []);
     } catch (err) { console.error(err); }
   };
 
