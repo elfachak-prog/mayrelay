@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import API from '../services/api';
 
+const isMobileScreen = () => window.innerWidth < 768;
+
 const COLORS = {
   ocean: "#0A4B6E",
   coral: "#E8613A",
@@ -16,6 +18,13 @@ export default function Casiers({ user }) {
   const [modal, setModal] = useState(null);
   const [assignForm, setAssignForm] = useState({ ref: '', nom: '' });
   const [chargement, setChargement] = useState(false);
+  const [mobile, setMobile] = useState(isMobileScreen());
+
+  useEffect(() => {
+    const handler = () => setMobile(isMobileScreen());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   useEffect(() => {
     chargerCasiers();
@@ -79,7 +88,7 @@ export default function Casiers({ user }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
         {casiers.map(c => (
           <div key={c.id} onClick={() => c.statut !== 'hors_service' && setModal(c)}
             style={{ background: casierBg[c.statut] || '#F5F5F5', borderRadius: 14, padding: '20px 16px', border: `2px solid ${casierColor[c.statut] || '#CCC'}44`, textAlign: 'center', cursor: c.statut === 'hors_service' ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}>
@@ -95,7 +104,7 @@ export default function Casiers({ user }) {
 
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: COLORS.white, borderRadius: 20, padding: 36, width: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: COLORS.white, borderRadius: 20, padding: mobile ? 24 : 36, width: mobile ? 'calc(100vw - 32px)' : 400, maxWidth: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
             {modal.statut === 'libre' ? (
               <>
                 <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>Assigner le casier {modal.numero}</div>
