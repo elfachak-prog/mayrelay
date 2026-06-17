@@ -563,7 +563,7 @@ export default function Admin({ user, onLogout }) {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                 {[1,2,3,4].map(i => (
-                  <div key={i} style={{ background: C.white, borderRadius: 16, padding: '22px 24px', border: `1px solid ${C.border}`, height: 100, background: 'linear-gradient(90deg, #F8FAFC 25%, #F1F5F9 50%, #F8FAFC 75%)', backgroundSize: '200% 100%' }} />
+                  <div key={i} style={{ borderRadius: 16, padding: '22px 24px', border: `1px solid ${C.border}`, height: 100, background: 'linear-gradient(90deg, #F8FAFC 25%, #F1F5F9 50%, #F8FAFC 75%)', backgroundSize: '200% 100%' }} />
                 ))}
               </div>
             )}

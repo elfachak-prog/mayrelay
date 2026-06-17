@@ -127,8 +127,6 @@ export default function Parametres() {
   const [purgeResult, setPurgeResult] = useState(null);
   const [confirmerPurge, setConfirmerPurge] = useState(false);
 
-  useEffect(() => { charger(); chargerSms(); }, []);
-
   const charger = async () => {
     try {
       const res = await API.get('/parametres');
@@ -146,6 +144,8 @@ export default function Parametres() {
       setSmsLogs(lRes.data.twilio || []);
     } catch (err) { console.error(err); }
   }, []);
+
+  useEffect(() => { charger(); chargerSms(); }, [chargerSms]);
 
   const handleToggle = async () => {
     setToggling(true);
