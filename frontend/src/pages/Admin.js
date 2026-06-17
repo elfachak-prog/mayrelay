@@ -507,7 +507,7 @@ function GestionColis() {
   );
 }
 
-export default function Admin({ user, onLogout }) {
+export default function Admin({ user, onLogout, logo, onLogoChange }) {
   const [stats, setStats] = useState(null);
   const [onglet, setOnglet] = useState('dashboard');
 
@@ -534,7 +534,10 @@ export default function Admin({ user, onLogout }) {
     <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
       <div style={{ width: 220, background: C.navy, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+          {logo
+            ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+            : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+          }
           <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
         </div>
         <div style={{ flex: 1, padding: '12px 10px' }}>
@@ -708,7 +711,7 @@ export default function Admin({ user, onLogout }) {
         {onglet === 'partenaires' && <GestionPartenaires />}
         {onglet === 'livreurs' && <GestionLivreurs />}
         {onglet === 'colis' && <GestionColis />}
-        {onglet === 'parametres' && <Parametres />}
+        {onglet === 'parametres' && <Parametres onLogoChange={onLogoChange} />}
         {onglet === 'finance' && <Finance />}
         {onglet === 'sms' && <GestionSMS />}
       </div>

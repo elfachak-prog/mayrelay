@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import API from '../services/api';
 
 const C = {
@@ -117,8 +117,14 @@ function TextAreaRow({ label, description, value, onSave }) {
   );
 }
 
-export default function Parametres() {
+export default function Parametres({ onLogoChange }) {
   const [params, setParams] = useState(null);
+  const [logoMode, setLogoMode] = useState('url');
+  const [logoInput, setLogoInput] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [logoSaved, setLogoSaved] = useState(false);
+  const logoInitialise = useRef(false);
   const [smsStatut, setSmsStatut] = useState(null);
   const [smsLogs, setSmsLogs] = useState([]);
   const [toggling, setToggling] = useState(false);
@@ -146,6 +152,15 @@ export default function Parametres() {
   }, []);
 
   useEffect(() => { charger(); chargerSms(); }, [chargerSms]);
+
+  useEffect(() => {
+    if (params && !logoInitialise.current) {
+      logoInitialise.current = true;
+      const logo = params.logo_url || '';
+      setLogoInput(logo);
+      setLogoPreview(logo);
+    }
+  }, [params]);
 
   const handleToggle = async () => {
     setToggling(true);
@@ -178,6 +193,41 @@ export default function Parametres() {
     setConfirmerPurge(false);
   };
 
+  const handleLogoUrl = (e) => {
+    setLogoInput(e.target.value);
+    setLogoPreview(e.target.value);
+  };
+
+  const handleLogoFichier = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target.result;
+      setLogoInput(data);
+      setLogoPreview(data);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const sauvegarderLogo = async () => {
+    setLogoSaving(true);
+    await sauvegarder('logo_url', logoInput);
+    if (onLogoChange) onLogoChange(logoInput);
+    setLogoSaved(true);
+    setTimeout(() => setLogoSaved(false), 3000);
+    setLogoSaving(false);
+  };
+
+  const supprimerLogo = async () => {
+    setLogoSaving(true);
+    await sauvegarder('logo_url', '');
+    setLogoInput('');
+    setLogoPreview('');
+    if (onLogoChange) onLogoChange('');
+    setLogoSaving(false);
+  };
+
   const sauvegarder = async (cle, valeur) => {
     try {
       await API.put(`/parametres/${cle}`, { valeur });
@@ -193,6 +243,72 @@ export default function Parametres() {
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, marginBottom: 4, fontFamily: 'Georgia, serif' }}>Paramètres</h2>
       <div style={{ fontSize: 13, color: '#888', marginBottom: 24, fontFamily: 'sans-serif' }}>Configurez votre plateforme sans toucher au code</div>
+
+      <Section title="Image de marque" icon="🎨">
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          {/* Formulaire */}
+          <div style={{ flex: 1, minWidth: 240 }}>
+            {/* Onglets mode */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              {[{ key: 'url', label: 'URL externe' }, { key: 'fichier', label: 'Fichier (base64)' }].map(m => (
+                <button key={m.key} onClick={() => setLogoMode(m.key)}
+                  style={{ padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${logoMode === m.key ? C.teal : C.border}`, background: logoMode === m.key ? C.teal : '#F8FAFC', color: logoMode === m.key ? C.white : C.muted, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {logoMode === 'url' ? (
+              <div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>Entrez l'URL de votre logo (PNG, SVG, JPG…)</div>
+                <input
+                  type="text"
+                  value={logoInput}
+                  onChange={handleLogoUrl}
+                  placeholder="https://example.com/logo.png"
+                  style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${C.teal}`, borderRadius: 8, fontSize: 13, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif' }}
+                />
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>Choisissez une image depuis votre appareil (max ~2 Mo recommandé)</div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoFichier}
+                  style={{ fontSize: 13, fontFamily: 'sans-serif', color: C.dark }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button onClick={sauvegarderLogo} disabled={logoSaving || !logoInput}
+                style={{ background: logoSaved ? C.green : C.teal, color: C.white, border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: (logoSaving || !logoInput) ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif', opacity: !logoInput ? 0.5 : 1 }}>
+                {logoSaving ? '…' : logoSaved ? '✅ Sauvegardé' : 'Sauvegarder le logo'}
+              </button>
+              {logoPreview && (
+                <button onClick={supprimerLogo} disabled={logoSaving}
+                  style={{ background: '#FEF2F2', color: C.red, border: `1px solid #FECACA`, borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 700, cursor: logoSaving ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                  Supprimer
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Prévisualisation */}
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>Prévisualisation dans le header</div>
+            <div style={{ background: '#0B1F3A', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10, minWidth: 220, minHeight: 72 }}>
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo prévisualisation" style={{ maxHeight: 40, maxWidth: 150, objectFit: 'contain', display: 'block' }} onError={() => setLogoPreview('')} />
+              ) : (
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginTop: 6 }}>Affiché dans admin, partenaire & livreur</div>
+          </div>
+        </div>
+      </Section>
 
       <Section title="Tarifs" icon="💶">
         <ParamRow label="Prix courrier" description="Tarif pour un envoi courrier / lettre" value={params.prix_courrier + ' €'} onSave={v => sauvegarder('prix_courrier', v.replace('€','').trim())} />

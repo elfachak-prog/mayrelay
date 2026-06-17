@@ -61,7 +61,7 @@ function MissionCard({ mission, onAccepter }) {
   );
 }
 
-export default function Livreur({ user, onLogout }) {
+export default function Livreur({ user, onLogout, logo }) {
   const [onglet, setOnglet] = useState('missions');
   const [missions, setMissions] = useState([]);
   const [missionEnCours, setMissionEnCours] = useState(null);
@@ -182,7 +182,10 @@ export default function Livreur({ user, onLogout }) {
       {/* Header */}
       <div style={{ padding: '20px 20px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
+          {logo
+            ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block' }} />
+            : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
+          }
           <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Espace Livreur — {user.nom}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

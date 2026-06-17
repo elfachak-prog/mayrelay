@@ -8,6 +8,7 @@ import Paiements from './pages/Paiements';
 import Suivi from './pages/Suivi';
 import TestQR from './pages/TestQR';
 import Reception from './pages/Reception';
+import API from './services/api';
 
 function useIsMobile() {
   const query = '(max-width: 767px)';
@@ -28,7 +29,15 @@ function App() {
   });
 
   const [ongletGlobal, setOngletGlobal] = useState('dashboard');
+  const [logoUrl, setLogoUrl] = useState('');
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (!user) return;
+    API.get('/parametres')
+      .then(res => setLogoUrl(res.data.parametres?.logo_url || ''))
+      .catch(() => {});
+  }, [user]);
 
   const handleLogin = (userData) => setUser(userData);
 
@@ -44,8 +53,8 @@ function App() {
   }
 
   if (!user) return <Login onLogin={handleLogin} />;
-  if (user.role === 'admin') return <Admin user={user} onLogout={handleLogout} />;
-  if (user.role === 'livreur') return <Livreur user={user} onLogout={handleLogout} />;
+  if (user.role === 'admin') return <Admin user={user} onLogout={handleLogout} logo={logoUrl} onLogoChange={setLogoUrl} />;
+  if (user.role === 'livreur') return <Livreur user={user} onLogout={handleLogout} logo={logoUrl} />;
 
   const navItems = [
     { key: 'dashboard', icon: '◈', label: 'Accueil' },
@@ -65,7 +74,10 @@ function App() {
       {!isMobile && (
         <div style={{ width: 220, background: '#0D1F2D', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+            {logoUrl
+              ? <img src={logoUrl} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+              : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+            }
             <div style={{ fontSize: 10, color: '#4A7B94', marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
           </div>
           <div style={{ flex: 1, padding: '12px 10px' }}>
@@ -89,7 +101,10 @@ function App() {
         {isMobile && (
           <div style={{ background: '#0D1F2D', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+              {logoUrl
+                ? <img src={logoUrl} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block', marginBottom: 2 }} />
+                : <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+              }
               <div style={{ fontSize: 9, color: '#4A7B94', letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
