@@ -160,7 +160,7 @@ export default function Parametres() {
     setRafraichissant(true);
     try {
       const res = await API.get('/admin/sms/solde');
-      setSmsStatut(prev => ({ ...prev, solde: res.data.solde, devise: res.data.devise }));
+      setSmsStatut(prev => ({ ...prev, solde: res.data.solde, devise: res.data.devise, solde_eur: res.data.solde_eur, taux_eur: res.data.taux_eur }));
     } catch (err) { console.error(err); }
     setRafraichissant(false);
   };
@@ -265,9 +265,19 @@ export default function Parametres() {
             </div>
             {smsStatut ? (
               smsStatut.solde !== null ? (
-                <div style={{ fontSize: 26, fontWeight: 700, color: smsStatut.solde < 1 ? C.red : C.navy, fontFamily: 'Georgia, serif' }}>
-                  {smsStatut.solde?.toFixed(2)} <span style={{ fontSize: 12, color: C.muted }}>{smsStatut.devise}</span>
-                </div>
+                <>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: (smsStatut.solde_eur ?? smsStatut.solde) < 1 ? C.red : C.navy, fontFamily: 'Georgia, serif', marginBottom: 2 }}>
+                    {smsStatut.solde_eur !== null && smsStatut.solde_eur !== undefined
+                      ? smsStatut.solde_eur.toFixed(2)
+                      : smsStatut.solde?.toFixed(2)
+                    } <span style={{ fontSize: 12, color: C.muted }}>€</span>
+                  </div>
+                  {smsStatut.taux_eur !== null && smsStatut.taux_eur !== undefined && (
+                    <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace' }}>
+                      1 {smsStatut.devise} = {smsStatut.taux_eur.toFixed(4)} €
+                    </div>
+                  )}
+                </>
               ) : <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Non disponible</div>
             ) : <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Chargement…</div>}
           </div>
