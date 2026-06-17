@@ -154,13 +154,34 @@ router.put('/livreurs/:id/statut', async (req, res) => {
 router.get('/colis', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT c.*, p.nom as partenaire_nom 
-      FROM colis c 
-      LEFT JOIN partenaires p ON c.partenaire_id = p.id 
+      SELECT c.*, p.nom as partenaire_nom
+      FROM colis c
+      LEFT JOIN partenaires p ON c.partenaire_id = p.id
       ORDER BY c.created_at DESC
     `);
     res.json({ colis: result.rows });
   } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// DELETE /api/admin/colis/purge-test — supprime tous les colis en_attente/en_transit (colis de test)
+router.delete('/colis/purge-test', async (req, res) => {
+  try {
+    const colisRes = await db.query(
+      "SELECT id FROM colis WHERE statut IN ('en_attente', 'en_transit')"
+    );
+    const ids = colisRes.rows.map(r => r.id);
+    if (ids.length === 0) return res.json({ supprime: 0, message: 'Aucun colis à supprimer' });
+
+    await db.query('DELETE FROM notifications WHERE colis_id = ANY($1)', [ids]);
+    await db.query('DELETE FROM missions WHERE colis_id = ANY($1)', [ids]);
+    await db.query('DELETE FROM paiements WHERE colis_id = ANY($1)', [ids]);
+    const result = await db.query('DELETE FROM colis WHERE id = ANY($1)', [ids]);
+
+    res.json({ supprime: result.rowCount, message: `${result.rowCount} colis supprimé(s)` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
 });
 
 module.exports = router;

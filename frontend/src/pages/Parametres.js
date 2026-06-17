@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
 
 const C = {
@@ -119,14 +119,63 @@ function TextAreaRow({ label, description, value, onSave }) {
 
 export default function Parametres() {
   const [params, setParams] = useState(null);
+  const [smsStatut, setSmsStatut] = useState(null);
+  const [smsLogs, setSmsLogs] = useState([]);
+  const [toggling, setToggling] = useState(false);
+  const [rafraichissant, setRafraichissant] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState(null);
+  const [confirmerPurge, setConfirmerPurge] = useState(false);
 
-  useEffect(() => { charger(); }, []);
+  useEffect(() => { charger(); chargerSms(); }, []);
 
   const charger = async () => {
     try {
       const res = await API.get('/parametres');
       setParams(res.data.parametres);
     } catch (err) { console.error(err); }
+  };
+
+  const chargerSms = useCallback(async () => {
+    try {
+      const [sRes, lRes] = await Promise.all([
+        API.get('/admin/sms/statut'),
+        API.get('/admin/sms/logs'),
+      ]);
+      setSmsStatut(sRes.data);
+      setSmsLogs(lRes.data.twilio || []);
+    } catch (err) { console.error(err); }
+  }, []);
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      const res = await API.post('/admin/sms/toggle');
+      setSmsStatut(prev => ({ ...prev, notifications_actives: res.data.notifications_actives }));
+    } catch (err) { console.error(err); }
+    setToggling(false);
+  };
+
+  const rafraichirSolde = async () => {
+    setRafraichissant(true);
+    try {
+      const res = await API.get('/admin/sms/solde');
+      setSmsStatut(prev => ({ ...prev, solde: res.data.solde, devise: res.data.devise }));
+    } catch (err) { console.error(err); }
+    setRafraichissant(false);
+  };
+
+  const purgerColisTest = async () => {
+    setPurging(true);
+    setPurgeResult(null);
+    try {
+      const res = await API.delete('/admin/colis/purge-test');
+      setPurgeResult({ ok: true, message: res.data.message });
+    } catch (err) {
+      setPurgeResult({ ok: false, message: err.response?.data?.message || 'Erreur serveur' });
+    }
+    setPurging(false);
+    setConfirmerPurge(false);
   };
 
   const sauvegarder = async (cle, valeur) => {
@@ -182,6 +231,113 @@ export default function Parametres() {
             <span key={q} style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 11, padding: '4px 10px', borderRadius: 20, fontFamily: 'sans-serif' }}>{q.trim()}</span>
           ))}
         </div>
+      </Section>
+
+      <Section title="Twilio & Notifications SMS" icon="📡">
+        {/* Ligne : Toggle + Solde + Purge */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+
+          {/* Toggle */}
+          <div style={{ background: '#F8FAFC', borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 12 }}>Notifications SMS</div>
+            {smsStatut ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  onClick={!toggling ? handleToggle : undefined}
+                  style={{ width: 48, height: 26, borderRadius: 13, cursor: toggling ? 'not-allowed' : 'pointer', background: smsStatut.notifications_actives ? C.green : '#CBD5E1', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}
+                >
+                  <div style={{ position: 'absolute', top: 3, left: smsStatut.notifications_actives ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: C.white, transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: smsStatut.notifications_actives ? C.green : C.muted, fontFamily: 'sans-serif' }}>
+                  {smsStatut.notifications_actives ? 'Activées' : 'Désactivées'}
+                </div>
+              </div>
+            ) : <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Chargement…</div>}
+          </div>
+
+          {/* Solde */}
+          <div style={{ background: '#F8FAFC', borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600 }}>Solde Twilio</div>
+              <button onClick={rafraichirSolde} disabled={rafraichissant} style={{ fontSize: 11, color: C.teal, background: 'transparent', border: 'none', cursor: rafraichissant ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif', padding: 0 }}>
+                {rafraichissant ? '…' : '↻'}
+              </button>
+            </div>
+            {smsStatut ? (
+              smsStatut.solde !== null ? (
+                <div style={{ fontSize: 26, fontWeight: 700, color: smsStatut.solde < 1 ? C.red : C.navy, fontFamily: 'Georgia, serif' }}>
+                  {smsStatut.solde?.toFixed(2)} <span style={{ fontSize: 12, color: C.muted }}>{smsStatut.devise}</span>
+                </div>
+              ) : <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Non disponible</div>
+            ) : <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Chargement…</div>}
+          </div>
+
+          {/* Purge colis de test */}
+          <div style={{ background: '#FFF8F8', borderRadius: 12, padding: '16px 18px', border: `1px solid #FEE2E2` }}>
+            <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 12 }}>Données de test</div>
+            {purgeResult && (
+              <div style={{ fontSize: 11, color: purgeResult.ok ? C.green : C.red, fontFamily: 'sans-serif', marginBottom: 10, fontWeight: 600 }}>
+                {purgeResult.ok ? '✅' : '❌'} {purgeResult.message}
+              </div>
+            )}
+            {confirmerPurge ? (
+              <div>
+                <div style={{ fontSize: 11, color: C.red, fontFamily: 'sans-serif', marginBottom: 8 }}>Confirmer la suppression ?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={purgerColisTest} disabled={purging} style={{ background: C.red, color: C.white, border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 11, fontWeight: 700, cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                    {purging ? '…' : 'Confirmer'}
+                  </button>
+                  <button onClick={() => setConfirmerPurge(false)} style={{ background: '#F0F3F5', color: '#666', border: 'none', borderRadius: 8, padding: '7px 10px', fontSize: 11, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { setPurgeResult(null); setConfirmerPurge(true); }} style={{ background: C.red, color: C.white, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                🗑 Supprimer colis de test
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Historique SMS */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, fontFamily: 'sans-serif', marginBottom: 10 }}>Derniers SMS envoyés</div>
+        {smsLogs.length === 0 ? (
+          <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', padding: '16px 0', textAlign: 'center' }}>
+            {smsStatut?.solde === null ? '⚠ Credentials Twilio non configurés' : 'Aucun SMS dans l\'historique'}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+              <thead>
+                <tr>
+                  {['Date', 'Destinataire', 'Statut', 'Coût'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600, background: '#F8FAFC', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {smsLogs.slice(0, 15).map((m, i) => {
+                  const statutCfg = { delivered: { label: 'Livré', color: C.green }, sent: { label: 'Envoyé', color: '#3B82F6' }, failed: { label: 'Échec', color: C.red }, undelivered: { label: 'Non livré', color: C.red }, queued: { label: 'En file', color: C.amber } }[m.statut] || { label: m.statut, color: C.muted };
+                  return (
+                    <tr key={m.sid} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
+                      <td style={{ padding: '9px 12px', fontSize: 11, color: C.muted, fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}>
+                        {m.date ? new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td style={{ padding: '9px 12px', fontSize: 12, fontFamily: 'monospace', color: C.dark }}>{m.telephone}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: statutCfg.color, fontFamily: 'sans-serif' }}>{statutCfg.label}</span>
+                      </td>
+                      <td style={{ padding: '9px 12px', fontSize: 11, fontFamily: 'monospace', color: m.cout ? C.dark : C.muted }}>
+                        {m.cout ? `${m.cout} ${m.devise_cout}` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Section>
     </div>
   );
