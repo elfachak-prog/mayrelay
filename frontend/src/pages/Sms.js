@@ -63,7 +63,7 @@ export default function GestionSMS() {
     setRafraichissantSolde(true);
     try {
       const res = await API.get('/admin/sms/solde');
-      setStatut(prev => ({ ...prev, solde: res.data.solde, devise: res.data.devise }));
+      setStatut(prev => ({ ...prev, solde: res.data.solde, devise: res.data.devise, solde_eur: res.data.solde_eur, taux_eur: res.data.taux_eur }));
     } catch (err) { console.error(err); }
     setRafraichissantSolde(false);
   };
@@ -137,10 +137,18 @@ export default function GestionSMS() {
           {statut ? (
             statut.solde !== null ? (
               <>
-                <div style={{ fontSize: 32, fontWeight: 700, color: statut.solde < 1 ? C.red : C.navy, fontFamily: 'Georgia, serif', marginBottom: 4 }}>
-                  {statut.solde?.toFixed(2)} <span style={{ fontSize: 14, color: C.muted }}>{statut.devise}</span>
+                <div style={{ fontSize: 32, fontWeight: 700, color: (statut.solde_eur ?? statut.solde) < 1 ? C.red : C.navy, fontFamily: 'Georgia, serif', marginBottom: 2 }}>
+                  {statut.solde_eur !== null && statut.solde_eur !== undefined
+                    ? statut.solde_eur.toFixed(2)
+                    : statut.solde?.toFixed(2)
+                  } <span style={{ fontSize: 14, color: C.muted }}>€</span>
                 </div>
-                {statut.solde < 1 && <div style={{ fontSize: 11, color: C.red, fontFamily: 'sans-serif' }}>⚠ Solde faible — rechargez votre compte</div>}
+                {statut.taux_eur !== null && statut.taux_eur !== undefined && (
+                  <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace', marginBottom: 4 }}>
+                    1 {statut.devise} = {statut.taux_eur.toFixed(4)} €
+                  </div>
+                )}
+                {(statut.solde_eur ?? statut.solde) < 1 && <div style={{ fontSize: 11, color: C.red, fontFamily: 'sans-serif' }}>⚠ Solde faible — rechargez votre compte</div>}
               </>
             ) : <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif' }}>Non disponible<br/><span style={{ fontSize: 11 }}>(vérifiez les credentials)</span></div>
           ) : <div style={{ color: C.muted, fontSize: 13, fontFamily: 'sans-serif' }}>Chargement…</div>}
@@ -206,8 +214,10 @@ export default function GestionSMS() {
                       <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={m.corps}>{m.corps}</div>
                     </td>
                     <td style={{ padding: '11px 18px' }}><StatTag s={m.statut} /></td>
-                    <td style={{ padding: '11px 18px', fontSize: 12, fontFamily: 'monospace', color: m.cout ? '#555' : C.muted }}>
-                      {m.cout ? `${m.cout} ${m.devise_cout}` : '—'}
+                    <td style={{ padding: '11px 18px', fontSize: 12, fontFamily: 'monospace', color: m.cout_eur !== null ? '#555' : C.muted }}>
+                      {m.cout_eur !== null && m.cout_eur !== undefined
+                        ? `${m.cout_eur.toFixed(4)} €`
+                        : m.cout ? `${m.cout} ${m.devise_cout ?? ''}`.trim() : '—'}
                     </td>
                   </tr>
                 ))}

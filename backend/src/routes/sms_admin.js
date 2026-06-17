@@ -9,7 +9,22 @@ const twilioClient = () => twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-// GET /admin/sms/statut — état global + solde Twilio
+async function fetchTauxEUR(devise) {
+  try {
+    const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${devise}`);
+    const data = await res.json();
+    return data.rates?.EUR ?? null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function convertirEUR(montant, taux) {
+  if (montant === null || montant === undefined || taux === null) return null;
+  return parseFloat((Math.abs(parseFloat(montant)) * taux).toFixed(4));
+}
+
+// GET /admin/sms/statut — état global + solde Twilio converti en EUR
 router.get('/statut', async (req, res) => {
   try {
     const [actives, statsRes] = await Promise.all([
@@ -23,17 +38,19 @@ router.get('/statut', async (req, res) => {
       `)
     ]);
 
-    let solde = null, devise = null;
+    let solde = null, devise = null, solde_eur = null, taux_eur = null;
     try {
       const bal = await twilioClient().balance.fetch();
       solde = parseFloat(bal.balance);
       devise = bal.currency;
+      taux_eur = await fetchTauxEUR(devise);
+      solde_eur = convertirEUR(solde, taux_eur);
     } catch (e) {}
 
     res.json({
       notifications_actives: actives,
       twilio_phone: process.env.TWILIO_PHONE_NUMBER || null,
-      solde, devise,
+      solde, devise, solde_eur, taux_eur,
       stats: statsRes.rows[0]
     });
   } catch (err) {
@@ -59,11 +76,15 @@ router.post('/toggle', async (req, res) => {
   }
 });
 
-// GET /admin/sms/solde — solde Twilio en temps réel
+// GET /admin/sms/solde — solde Twilio en temps réel converti en EUR
 router.get('/solde', async (req, res) => {
   try {
     const bal = await twilioClient().balance.fetch();
-    res.json({ solde: parseFloat(bal.balance), devise: bal.currency });
+    const solde = parseFloat(bal.balance);
+    const devise = bal.currency;
+    const taux_eur = await fetchTauxEUR(devise);
+    const solde_eur = convertirEUR(solde, taux_eur);
+    res.json({ solde, devise, solde_eur, taux_eur });
   } catch (err) {
     res.status(502).json({ message: 'Impossible de joindre Twilio', detail: err.message });
   }
@@ -75,13 +96,20 @@ router.get('/logs', async (req, res) => {
     let twilioLogs = [];
     try {
       const messages = await twilioClient().messages.list({ limit: 50 });
+
+      let taux_eur = null;
+      if (messages.length > 0 && messages[0].priceUnit) {
+        taux_eur = await fetchTauxEUR(messages[0].priceUnit);
+      }
+
       twilioLogs = messages.map(m => ({
         sid: m.sid,
         telephone: m.to,
         corps: m.body,
         statut: m.status,
         cout: m.price ? Math.abs(parseFloat(m.price)).toFixed(4) : null,
-        devise_cout: m.priceUnit,
+        cout_eur: m.price ? convertirEUR(m.price, taux_eur) : null,
+        taux_eur,
         date: m.dateSent || m.dateCreated,
         direction: m.direction,
       }));
