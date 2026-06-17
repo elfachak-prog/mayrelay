@@ -220,14 +220,14 @@ export default function Parametres() {
         <div style={{ background: '#F0F9FF', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#0369A1', fontFamily: 'sans-serif' }}>
           Variables disponibles : <strong>{'{nom}'}</strong> <strong>{'{type}'}</strong> <strong>{'{quartier}'}</strong> <strong>{'{reference}'}</strong>
         </div>
-        <TextAreaRow label="Message envoyé au destinataire" description="Ce message est envoyé par SMS quand le colis arrive au point relais" value={params.sms_message} onSave={v => sauvegarder('sms_message', v)} />
+        <TextAreaRow label="Message envoyé au destinataire" description="Ce message est envoyé par SMS quand le colis arrive au point relais" value={params.sms_message || ''} onSave={v => sauvegarder('sms_message', v)} />
       </Section>
 
       <Section title="Quartiers" icon="📍">
         <div style={{ fontSize: 12, color: C.muted, marginBottom: 12, fontFamily: 'sans-serif' }}>Séparez les quartiers par des virgules</div>
-        <TextAreaRow label="Liste des quartiers disponibles" description="Ces quartiers apparaissent dans le formulaire d'envoi" value={params.quartiers} onSave={v => sauvegarder('quartiers', v)} />
+        <TextAreaRow label="Liste des quartiers disponibles" description="Ces quartiers apparaissent dans le formulaire d'envoi" value={params.quartiers || ''} onSave={v => sauvegarder('quartiers', v)} />
         <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {params.quartiers.split(',').map(q => (
+          {(params.quartiers || '').split(',').filter(q => q.trim()).map(q => (
             <span key={q} style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 11, padding: '4px 10px', borderRadius: 20, fontFamily: 'sans-serif' }}>{q.trim()}</span>
           ))}
         </div>
