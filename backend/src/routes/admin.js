@@ -157,13 +157,41 @@ router.get('/colis', async (req, res) => {
       SELECT c.*, p.nom as partenaire_nom
       FROM colis c
       LEFT JOIN partenaires p ON c.partenaire_id = p.id
+      WHERE c.archive IS NOT TRUE
       ORDER BY c.created_at DESC
     `);
     res.json({ colis: result.rows });
   } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+// GET /admin/colis/corbeille — colis archivés
+router.get('/colis/corbeille', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT c.*, p.nom as partenaire_nom
+      FROM colis c
+      LEFT JOIN partenaires p ON c.partenaire_id = p.id
+      WHERE c.archive = TRUE
+      ORDER BY c.updated_at DESC
+    `);
+    res.json({ colis: result.rows });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// PATCH /admin/colis/:id/archiver — soft delete (archive=true), missions/paiements intacts
+router.patch('/colis/:id/archiver', async (req, res) => {
+  try {
+    const result = await db.query(
+      'UPDATE colis SET archive = TRUE, updated_at = NOW() WHERE id = $1 AND (archive IS NOT TRUE) RETURNING id',
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Colis introuvable ou déjà archivé' });
+    res.json({ message: 'Colis archivé' });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
 // DELETE /api/admin/colis/purge-test — supprime tous les colis en_attente/en_transit (colis de test)
+// DOIT rester avant DELETE /colis/:id pour ne pas être capturé par le paramètre
 router.delete('/colis/purge-test', async (req, res) => {
   try {
     const colisRes = await db.query(
@@ -182,6 +210,20 @@ router.delete('/colis/purge-test', async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
+});
+
+// DELETE /admin/colis/:id — suppression définitive avec cascade
+router.delete('/colis/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: 'ID invalide' });
+    await db.query('DELETE FROM notifications WHERE colis_id = $1', [id]);
+    await db.query('DELETE FROM missions WHERE colis_id = $1', [id]);
+    await db.query('DELETE FROM paiements WHERE colis_id = $1', [id]);
+    const result = await db.query('DELETE FROM colis WHERE id = $1 RETURNING id', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Colis introuvable' });
+    res.json({ message: 'Colis supprimé définitivement' });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
 module.exports = router;

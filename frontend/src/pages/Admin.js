@@ -308,48 +308,167 @@ function GestionLivreurs() {
 
 function GestionColis() {
   const [colis, setColis] = useState([]);
+  const [corbeille, setCorbeille] = useState([]);
+  const [onglet, setOnglet] = useState('actifs');
   const [filtre, setFiltre] = useState('tous');
+  const [modalArchive, setModalArchive] = useState(null);
+  const [modalSuppr, setModalSuppr] = useState(null);
+  const [etapeSuppr, setEtapeSuppr] = useState(1);
+  const [actionning, setActionning] = useState(false);
 
   const statutColisConfig = {
-    en_attente: { label: 'En attente', color: C.amber, bg: '#FEF3C7' },
-    en_transit: { label: 'En transit', color: C.blue, bg: '#DBEAFE' },
-    livre: { label: 'Livre', color: C.green, bg: '#D1FAE5' },
+    en_attente: { label: 'En attente', color: C.amber,    bg: '#FEF3C7' },
+    en_transit: { label: 'En transit', color: C.blue,     bg: '#DBEAFE' },
+    livre:      { label: 'Livré',      color: C.green,    bg: '#D1FAE5' },
+    paye:       { label: 'Payé',       color: '#8B5CF6',  bg: '#EDE9FE' },
   };
 
   useEffect(() => { charger(); }, []);
 
   const charger = async () => {
     try {
-      const res = await API.get('/admin/colis');
-      setColis(res.data.colis);
+      const [actRes, corbRes] = await Promise.all([
+        API.get('/admin/colis'),
+        API.get('/admin/colis/corbeille'),
+      ]);
+      setColis(actRes.data.colis);
+      setCorbeille(corbRes.data.colis);
     } catch (err) { console.error(err); }
   };
 
-  const filtered = filtre === 'tous' ? colis : colis.filter(c => c.statut === filtre);
+  const archiver = async () => {
+    if (!modalArchive) return;
+    setActionning(true);
+    try {
+      await API.patch(`/admin/colis/${modalArchive.id}/archiver`);
+      setModalArchive(null);
+      await charger();
+    } catch (err) { console.error(err); }
+    setActionning(false);
+  };
+
+  const supprimerDefinitif = async () => {
+    if (!modalSuppr) return;
+    setActionning(true);
+    try {
+      await API.delete(`/admin/colis/${modalSuppr.id}`);
+      setModalSuppr(null);
+      setEtapeSuppr(1);
+      await charger();
+    } catch (err) { console.error(err); }
+    setActionning(false);
+  };
+
+  const fermerSuppr = () => { setModalSuppr(null); setEtapeSuppr(1); };
+
+  const filtered = onglet === 'actifs'
+    ? (filtre === 'tous' ? colis : colis.filter(c => c.statut === filtre))
+    : corbeille;
+
+  const headers = onglet === 'actifs'
+    ? ['Référence', 'Partenaire', 'Destinataire', 'Quartier', 'Type', 'Prix', 'Statut', 'Date', '']
+    : ['Référence', 'Partenaire', 'Destinataire', 'Quartier', 'Type', 'Prix', 'Statut', 'Archivé le', ''];
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', margin: 0 }}>Tous les colis</h2>
-        <div style={{ fontSize: 13, color: '#888', marginTop: 2, fontFamily: 'sans-serif' }}>{colis.length} colis au total</div>
+      {/* ── Modal : archiver ──────────────────────────────────── */}
+      {modalArchive && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.white, borderRadius: 16, padding: '32px 36px', width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', marginBottom: 12 }}>Archiver ce colis ?</div>
+            <div style={{ fontSize: 13, color: '#555', fontFamily: 'sans-serif', marginBottom: 20, lineHeight: 1.6 }}>
+              Le colis <strong style={{ fontFamily: 'monospace', color: C.teal }}>{modalArchive.reference}</strong> sera déplacé dans la corbeille.<br/>
+              Les missions et paiements associés ne seront pas modifiés.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setModalArchive(null)} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#F0F3F5', color: '#555', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+              <button onClick={archiver} disabled={actionning} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: C.amber, color: C.white, fontSize: 13, fontWeight: 700, cursor: actionning ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                {actionning ? '…' : '🗑️ Archiver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal : suppression définitive (double confirmation) ── */}
+      {modalSuppr && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.white, borderRadius: 16, padding: '32px 36px', width: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            {etapeSuppr === 1 ? (
+              <>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', marginBottom: 12 }}>Supprimer définitivement ?</div>
+                <div style={{ fontSize: 13, color: '#555', fontFamily: 'sans-serif', marginBottom: 14 }}>
+                  Colis : <strong style={{ fontFamily: 'monospace', color: C.teal }}>{modalSuppr.reference}</strong>
+                </div>
+                <div style={{ background: '#FEF2F2', border: `1px solid #FECACA`, borderRadius: 10, padding: '12px 14px', marginBottom: 24, fontSize: 12, color: C.red, fontFamily: 'sans-serif', lineHeight: 1.7 }}>
+                  ⚠️ Cette action est irréversible et supprimera toute trace du colis (missions, paiements).
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={fermerSuppr} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#F0F3F5', color: '#555', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+                  <button onClick={() => setEtapeSuppr(2)} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Continuer →</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', marginBottom: 12 }}>Confirmation finale</div>
+                <div style={{ fontSize: 13, color: '#333', fontFamily: 'sans-serif', marginBottom: 24, lineHeight: 1.7 }}>
+                  Confirmez-vous la suppression définitive de <strong style={{ fontFamily: 'monospace', color: C.teal }}>{modalSuppr.reference}</strong> ?<br/>
+                  <span style={{ color: C.red, fontWeight: 600 }}>Cette action est irréversible et supprimera toute trace du colis.</span>
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={fermerSuppr} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#F0F3F5', color: '#555', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+                  <button onClick={supprimerDefinitif} disabled={actionning} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 13, fontWeight: 700, cursor: actionning ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                    {actionning ? '…' : '🔥 Supprimer définitivement'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Header ────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', margin: 0 }}>Tous les colis</h2>
+          <div style={{ fontSize: 13, color: '#888', marginTop: 2, fontFamily: 'sans-serif' }}>
+            {onglet === 'actifs' ? `${colis.length} colis actifs` : `${corbeille.length} colis en corbeille`}
+          </div>
+        </div>
+        {/* Onglets Actifs / Corbeille */}
+        <div style={{ display: 'flex', background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 4, gap: 2 }}>
+          <button onClick={() => setOnglet('actifs')} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: onglet === 'actifs' ? C.navy : 'transparent', color: onglet === 'actifs' ? C.white : '#666', fontSize: 12, fontWeight: onglet === 'actifs' ? 700 : 400, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+            📦 Actifs
+          </button>
+          <button onClick={() => setOnglet('corbeille')} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: onglet === 'corbeille' ? C.red : 'transparent', color: onglet === 'corbeille' ? C.white : (corbeille.length > 0 ? C.red : '#666'), fontSize: 12, fontWeight: onglet === 'corbeille' ? 700 : 400, cursor: 'pointer', fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
+            🗑️ Corbeille
+            {corbeille.length > 0 && <span style={{ background: onglet === 'corbeille' ? 'rgba(255,255,255,0.25)' : '#FEE2E2', color: onglet === 'corbeille' ? C.white : C.red, borderRadius: 20, padding: '0px 7px', fontSize: 11, fontWeight: 700 }}>{corbeille.length}</span>}
+          </button>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[['tous', 'Tous'], ['en_attente', 'En attente'], ['en_transit', 'En transit'], ['livre', 'Livres']].map(([k, l]) => (
-          <button key={k} onClick={() => setFiltre(k)} style={{ padding: '8px 14px', borderRadius: 20, border: `1px solid ${filtre === k ? C.navy : C.border}`, cursor: 'pointer', background: filtre === k ? C.navy : C.white, color: filtre === k ? C.white : '#666', fontSize: 12, fontFamily: 'sans-serif', fontWeight: filtre === k ? 700 : 400 }}>{l}</button>
-        ))}
-      </div>
+
+      {/* ── Filtres statut (actifs seulement) ─────────────────── */}
+      {onglet === 'actifs' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {[['tous', 'Tous'], ['en_attente', 'En attente'], ['en_transit', 'En transit'], ['livre', 'Livrés'], ['paye', 'Payés']].map(([k, l]) => (
+            <button key={k} onClick={() => setFiltre(k)} style={{ padding: '8px 14px', borderRadius: 20, border: `1px solid ${filtre === k ? C.navy : C.border}`, cursor: 'pointer', background: filtre === k ? C.navy : C.white, color: filtre === k ? C.white : '#666', fontSize: 12, fontFamily: 'sans-serif', fontWeight: filtre === k ? 700 : 400 }}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tableau ───────────────────────────────────────────── */}
       <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
-              {['Reference', 'Partenaire', 'Destinataire', 'Quartier', 'Type', 'Prix', 'Statut', 'Date'].map(h => (
+              {headers.map(h => (
                 <th key={h} style={{ padding: '10px 16px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.map((c, i) => {
-              const s = statutColisConfig[c.statut] || statutColisConfig.en_attente;
+              const s = statutColisConfig[c.statut] || { label: c.statut, color: C.muted, bg: '#F1F5F9' };
               return (
                 <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
                   <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontSize: 12, color: C.teal, fontWeight: 600 }}>{c.reference}</td>
@@ -359,13 +478,30 @@ function GestionColis() {
                   <td style={{ padding: '13px 16px', fontSize: 12, fontFamily: 'sans-serif' }}>{c.type === 'Colis' ? '📦' : '✉️'} {c.type}</td>
                   <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 600, color: C.teal, fontFamily: 'sans-serif' }}>{c.prix}€</td>
                   <td style={{ padding: '13px 16px' }}><Tag {...s} /></td>
-                  <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA', fontFamily: 'sans-serif' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA', fontFamily: 'sans-serif' }}>
+                    {new Date(onglet === 'actifs' ? c.created_at : c.updated_at).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td style={{ padding: '13px 16px' }}>
+                    {onglet === 'actifs' ? (
+                      <button onClick={() => setModalArchive(c)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid #FEE2E2`, background: '#FFF5F5', color: C.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}>
+                        🗑️ Supprimer
+                      </button>
+                    ) : (
+                      <button onClick={() => { setModalSuppr(c); setEtapeSuppr(1); }} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid #FECACA`, background: '#FEF2F2', color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}>
+                        🔥 Supprimer définitivement
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {filtered.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>Aucun colis</div>}
+        {filtered.length === 0 && (
+          <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>
+            {onglet === 'actifs' ? 'Aucun colis actif' : 'La corbeille est vide'}
+          </div>
+        )}
       </div>
     </div>
   );

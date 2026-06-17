@@ -108,4 +108,10 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error('Migration SMS:', err.message);
   }
+  try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS archive BOOLEAN DEFAULT FALSE');
+    console.log('Migration colis.archive OK');
+  } catch (err) {
+    console.error('Migration colis.archive:', err.message);
+  }
 });
