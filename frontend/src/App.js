@@ -54,6 +54,7 @@ function App() {
     { key: 'colis', icon: '▦', label: 'Colis' },
     { key: 'casiers', icon: '⊞', label: 'Casiers' },
     { key: 'paiements', icon: '💶', label: 'Paiements' },
+    { key: 'parametres', icon: '⚙️', label: 'Paramètres' },
   ];
 
   // Layout unifié — sidebar masquée sur mobile, bottom nav fixe sur mobile (identique à Livreur.js)
@@ -104,7 +105,41 @@ function App() {
           {ongletGlobal === 'paiements' && <Paiements user={user} />}
           {ongletGlobal === 'testqr' && <TestQR />}
           {ongletGlobal === 'reception' && <Reception />}
-          {!['casiers', 'paiements', 'testqr', 'reception'].includes(ongletGlobal) && (
+          {ongletGlobal === 'parametres' && (
+            <div style={{ maxWidth: 480 }}>
+              <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D1F2D', marginBottom: 4, fontFamily: 'Georgia, serif' }}>Paramètres</h2>
+              <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>Votre compte partenaire</div>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: 11, color: '#4A7B94', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>Nom</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0D1F2D' }}>{user.nom}</div>
+                </div>
+                {user.email && (
+                  <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: 11, color: '#4A7B94', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>Email</div>
+                    <div style={{ fontSize: 15, color: '#0D1F2D' }}>{user.email}</div>
+                  </div>
+                )}
+                {user.telephone && (
+                  <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: 11, color: '#4A7B94', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>Téléphone</div>
+                    <div style={{ fontSize: 15, color: '#0D1F2D' }}>{user.telephone}</div>
+                  </div>
+                )}
+                <div style={{ padding: '20px 24px' }}>
+                  <div style={{ fontSize: 11, color: '#4A7B94', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>Rôle</div>
+                  <div style={{ fontSize: 15, color: '#0D1F2D', textTransform: 'capitalize' }}>{user.role}</div>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                style={{ marginTop: 20, width: '100%', padding: '14px 0', background: 'transparent', border: '1.5px solid #E2E8F0', borderRadius: 12, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                ← Déconnexion
+              </button>
+            </div>
+          )}
+          {!['casiers', 'paiements', 'testqr', 'reception', 'parametres'].includes(ongletGlobal) && (
             <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={isMobile} />
           )}
         </div>

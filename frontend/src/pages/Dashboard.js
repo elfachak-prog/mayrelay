@@ -71,7 +71,9 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
   const inputStyle = { width: '100%', padding: '11px 14px', border: `1.5px solid ${COLORS.border}`, borderRadius: 10, fontSize: 14, color: COLORS.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif', background: '#FAFBFC' };
   const labelStyle = { display: 'block', fontSize: 11, color: COLORS.mid, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: 'sans-serif' };
 
-  const moisNom = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const _now = new Date();
+  const _MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const moisNom = `${_MOIS[_now.getMonth()]} ${_now.getFullYear()}`;
 
   return (
     <div>
