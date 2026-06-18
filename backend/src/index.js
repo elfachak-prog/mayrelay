@@ -120,4 +120,12 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error('Migration logo_url:', err.message);
   }
+  try {
+    await db.query(`INSERT INTO parametres (cle, valeur) VALUES ('prix_colis_lourd', '8') ON CONFLICT (cle) DO NOTHING`);
+    await db.query(`INSERT INTO parametres (cle, valeur) VALUES ('prix_palette', '20') ON CONFLICT (cle) DO NOTHING`);
+    await db.query(`INSERT INTO parametres (cle, valeur) VALUES ('majoration_urgence', '30') ON CONFLICT (cle) DO NOTHING`);
+    console.log('Migration parametres tarifs OK');
+  } catch (err) {
+    console.error('Migration parametres tarifs:', err.message);
+  }
 });

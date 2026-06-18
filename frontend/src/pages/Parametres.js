@@ -117,6 +117,132 @@ function TextAreaRow({ label, description, value, onSave }) {
   );
 }
 
+function SimulateurMarge({ params }) {
+  const [prix, setPrix] = useState('');
+
+  const p = parseFloat(prix) || 0;
+  const expPct   = parseFloat(params.commission_partenaire_exp) || 0;
+  const recPct   = parseFloat(params.commission_partenaire_rec) || 0;
+  const livrPct  = parseFloat(params.commission_livreur)        || 0;
+  const relayPct = parseFloat(params.commission_mayrelay)       || 0;
+  const urgPct   = parseFloat(params.majoration_urgence)        || 0;
+
+  const COUT_SMS = 0.49;
+
+  const partExp   = p * expPct   / 100;
+  const partRec   = p * recPct   / 100;
+  const partLivr  = p * livrPct  / 100;
+  const partRelay = p * relayPct / 100;
+  const margeNette = partRelay - COUT_SMS;
+
+  const prixUrgent     = p * (1 + urgPct / 100);
+  const partRelayUrgent = prixUrgent * relayPct / 100;
+  const margeNetteUrg  = partRelayUrgent - COUT_SMS;
+
+  const lignes = [
+    { label: 'Partenaire expéditeur', pct: expPct,   montant: partExp,   color: '#6366F1' },
+    { label: 'Partenaire récepteur',  pct: recPct,   montant: partRec,   color: '#8B5CF6' },
+    { label: 'Livreur',               pct: livrPct,  montant: partLivr,  color: '#F59E0B' },
+    { label: 'MayRelay',              pct: relayPct, montant: partRelay, color: C.teal    },
+  ];
+
+  return (
+    <Section title="Simulateur de marge" icon="🧮">
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {/* Entrée prix */}
+        <div style={{ flex: '0 0 220px' }}>
+          <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>
+            Prix facturé au client (€)
+          </div>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={prix}
+            onChange={e => setPrix(e.target.value)}
+            placeholder="ex : 5.00"
+            style={{ width: '100%', padding: '10px 14px', border: `2px solid ${C.teal}`, borderRadius: 10, fontSize: 20, fontWeight: 700, color: C.navy, outline: 'none', boxSizing: 'border-box', fontFamily: 'Georgia, serif' }}
+          />
+          {urgPct > 0 && p > 0 && (
+            <div style={{ marginTop: 10, fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>
+              Avec majoration urgence ({urgPct}%) :{' '}
+              <strong style={{ color: C.navy }}>{prixUrgent.toFixed(2)} €</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Répartition standard */}
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 10 }}>
+            Répartition — tarif normal
+          </div>
+          {lignes.map(l => (
+            <div key={l.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
+                <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>({l.pct}%)</span>
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: l.color, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+                {p > 0 ? l.montant.toFixed(2) + ' €' : '—'}
+              </span>
+            </div>
+          ))}
+          {/* Coût SMS */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.red, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>Coût SMS (fixe)</span>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+              − {COUT_SMS.toFixed(2)} €
+            </span>
+          </div>
+          {/* Marge nette */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 4px' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>Marge nette MayRelay</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: p > 0 ? (margeNette >= 0 ? C.green : C.red) : C.muted, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+              {p > 0 ? (margeNette >= 0 ? '+' : '') + margeNette.toFixed(2) + ' €' : '—'}
+            </span>
+          </div>
+        </div>
+
+        {/* Colonne urgence */}
+        {urgPct > 0 && (
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 11, color: C.amber, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 10 }}>
+              Répartition — urgence (+{urgPct}%)
+            </div>
+            {lignes.map(l => {
+              const montantUrg = prixUrgent * l.pct / 100;
+              return (
+                <div key={l.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: l.color, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+                    {p > 0 ? montantUrg.toFixed(2) + ' €' : '—'}
+                  </span>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>Coût SMS (fixe)</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+                − {COUT_SMS.toFixed(2)} €
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 4px' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>Marge nette urgence</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: p > 0 ? (margeNetteUrg >= 0 ? C.green : C.red) : C.muted, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
+                {p > 0 ? (margeNetteUrg >= 0 ? '+' : '') + margeNetteUrg.toFixed(2) + ' €' : '—'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 export default function Parametres({ onLogoChange }) {
   const [params, setParams] = useState(null);
   const [logoMode, setLogoMode] = useState('url');
@@ -311,8 +437,11 @@ export default function Parametres({ onLogoChange }) {
       </Section>
 
       <Section title="Tarifs" icon="💶">
-        <ParamRow label="Prix courrier" description="Tarif pour un envoi courrier / lettre" value={params.prix_courrier + ' €'} onSave={v => sauvegarder('prix_courrier', v.replace('€','').trim())} />
-        <ParamRow label="Prix colis" description="Tarif pour un envoi colis (jusqu'à 5kg)" value={params.prix_colis + ' €'} onSave={v => sauvegarder('prix_colis', v.replace('€','').trim())} />
+        <ParamRow label="Prix courrier" description="Tarif pour un envoi courrier / lettre" value={(params.prix_courrier || '0') + ' €'} onSave={v => sauvegarder('prix_courrier', v.replace('€','').trim())} />
+        <ParamRow label="Prix colis standard" description="Tarif pour un envoi colis jusqu'à 5 kg" value={(params.prix_colis || '0') + ' €'} onSave={v => sauvegarder('prix_colis', v.replace('€','').trim())} />
+        <ParamRow label="Prix colis lourd (>5 kg)" description="Tarif pour un colis pesant plus de 5 kg" value={(params.prix_colis_lourd || '0') + ' €'} onSave={v => sauvegarder('prix_colis_lourd', v.replace('€','').trim())} />
+        <ParamRow label="Prix palette / gros colis" description="Tarif pour une palette ou un très grand colis" value={(params.prix_palette || '0') + ' €'} onSave={v => sauvegarder('prix_palette', v.replace('€','').trim())} />
+        <ParamRow label="Majoration urgence" description="Pourcentage de majoration appliqué pour une livraison express" value={(params.majoration_urgence || '0') + ' %'} onSave={v => sauvegarder('majoration_urgence', v.replace('%','').trim())} />
       </Section>
 
       <Section title="Commissions" icon="📊">
@@ -331,6 +460,8 @@ export default function Parametres({ onLogoChange }) {
         <ParamRow label="Part livreur" description="% du prix reversé au livreur" value={params.commission_livreur + '%'} onSave={v => sauvegarder('commission_livreur', v.replace('%','').trim())} />
         <ParamRow label="Part MayRelay" description="% conservé par la plateforme" value={params.commission_mayrelay + '%'} onSave={v => sauvegarder('commission_mayrelay', v.replace('%','').trim())} />
       </Section>
+
+      <SimulateurMarge params={params} />
 
       <Section title="Message SMS" icon="📱">
         <div style={{ background: '#F0F9FF', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#0369A1', fontFamily: 'sans-serif' }}>
