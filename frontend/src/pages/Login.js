@@ -75,6 +75,17 @@ export default function Login({ onLogin }) {
         <button onClick={handleSubmit} disabled={chargement} style={{ width: '100%', padding: '14px', background: chargement ? '#4A7B94' : '#E8613A', border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700, cursor: chargement ? 'not-allowed' : 'pointer' }}>
           {chargement ? 'Connexion...' : 'Se connecter →'}
         </button>
+
+        <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <span style={{ fontSize: 13, color: '#4A7B94' }}>Pas encore partenaire ou livreur ?</span>
+          {' '}
+          <a href="/rejoindre" style={{ fontSize: 13, color: '#0E9F8E', fontWeight: 600, textDecoration: 'none' }}
+            onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'}
+            onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}
+          >
+            Rejoindre MayRelay
+          </a>
+        </div>
       </div>
     </div>
   );
