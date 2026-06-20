@@ -4,6 +4,18 @@ import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import QRCode from 'qrcode';
 
+function useIsMobile() {
+  const query = '(max-width: 767px)';
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 const C = {
   bg: "#0F1923", surface: "#17242F", card: "#1E3040",
   border: "#263D50", accent: "#F5A623", green: "#27C97A",
@@ -62,6 +74,7 @@ function MissionCard({ mission, onAccepter }) {
 }
 
 export default function Livreur({ user, onLogout, logo }) {
+  const isMobile = useIsMobile();
   const [onglet, setOnglet] = useState('missions');
   const [missions, setMissions] = useState([]);
   const [missionEnCours, setMissionEnCours] = useState(null);
@@ -177,30 +190,61 @@ export default function Livreur({ user, onLogout, logo }) {
   ];
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
 
-      {/* Header */}
-      <div style={{ padding: '20px 20px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          {logo
-            ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block' }} />
-            : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
-          }
-          <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Espace Livreur — {user.nom}</div>
+      {/* Sidebar — desktop uniquement */}
+      {!isMobile && (
+        <div style={{ width: 220, background: C.surface, display: 'flex', flexDirection: 'column', borderRight: `1px solid ${C.border}` }}>
+          <div style={{ padding: '28px 24px 20px', borderBottom: `1px solid ${C.border}` }}>
+            {logo
+              ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+              : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
+            }
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Espace Livreur</div>
+          </div>
+          <div style={{ flex: 1, padding: '12px 10px' }}>
+            {tabs.map(item => (
+              <div key={item.key} onClick={() => setOnglet(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: onglet === item.key ? C.accent + '22' : 'transparent', borderLeft: onglet === item.key ? `3px solid ${C.accent}` : '3px solid transparent', color: onglet === item.key ? C.white : C.muted, fontSize: 14, fontFamily: 'sans-serif' }}>
+                <span>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '16px 12px', borderTop: `1px solid ${C.border}` }}>
+            <div style={{ background: C.green + '22', border: `1px solid ${C.green}44`, borderRadius: 8, padding: '6px 12px', fontSize: 11, color: C.green, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 8 }}>● En ligne</div>
+            <div style={{ fontSize: 12, color: C.white, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8, fontFamily: 'sans-serif' }}>🛵 {user.nom}</div>
+            <div onClick={onLogout} style={{ fontSize: 12, color: C.muted, cursor: 'pointer', padding: '4px 12px', fontFamily: 'sans-serif' }}>← Déconnexion</div>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ background: C.green + '22', border: `1px solid ${C.green}44`, borderRadius: 20, padding: '4px 12px', fontSize: 11, color: C.green, fontFamily: 'sans-serif', fontWeight: 700 }}>● En ligne</div>
-          <div onClick={onLogout} style={{ fontSize: 11, color: C.muted, cursor: 'pointer', fontFamily: 'sans-serif' }}>Quitter</div>
+      )}
+
+      {/* Colonne principale */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+      {/* Header mobile uniquement */}
+      {isMobile && (
+        <div style={{ padding: '20px 20px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: C.bg, zIndex: 100 }}>
+          <div>
+            {logo
+              ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block' }} />
+              : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
+            }
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Espace Livreur — {user.nom}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ background: C.green + '22', border: `1px solid ${C.green}44`, borderRadius: 20, padding: '4px 12px', fontSize: 11, color: C.green, fontFamily: 'sans-serif', fontWeight: 700 }}>● En ligne</div>
+            <div onClick={onLogout} style={{ fontSize: 11, color: C.muted, cursor: 'pointer', fontFamily: 'sans-serif' }}>Quitter</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Contenu */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: isMobile ? 80 : undefined }}>
 
         {/* Missions disponibles */}
         {onglet === 'missions' && (
-          <div style={{ padding: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>Missions disponibles</div>
+          <div style={{ padding: isMobile ? 16 : 40 }}>
+            <div style={{ fontSize: isMobile ? 14 : 20, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>Missions disponibles</div>
             <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>{missions.length} mission(s) disponible(s)</div>
             {missions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
@@ -210,14 +254,16 @@ export default function Livreur({ user, onLogout, logo }) {
                 <button onClick={chargerMissions} style={{ marginTop: 16, padding: '10px 20px', background: C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Actualiser</button>
               </div>
             ) : (
-              missions.map(m => <MissionCard key={m.id} mission={m} onAccepter={handleAccepter} />)
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: isMobile ? 0 : 16 }}>
+                {missions.map(m => <MissionCard key={m.id} mission={m} onAccepter={handleAccepter} />)}
+              </div>
             )}
           </div>
         )}
 
         {/* Mission en cours */}
         {onglet === 'en_cours' && (
-          <div style={{ padding: 16 }}>
+          <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 700 }}>
             {!missionEnCours ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🛵</div>
@@ -340,8 +386,8 @@ export default function Livreur({ user, onLogout, logo }) {
 
         {/* Historique */}
         {onglet === 'historique' && (
-          <div style={{ padding: 16 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>📋 Mes missions terminées</div>
+          <div style={{ padding: isMobile ? 16 : 40 }}>
+            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>📋 Mes missions terminées</div>
             {/* Géolocalisation */}
             <div style={{ background: C.card, borderRadius: 12, padding: 12, border: `1px solid ${C.border}`, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ fontSize: 20 }}>📍</div>
@@ -362,8 +408,9 @@ export default function Livreur({ user, onLogout, logo }) {
                 <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif' }}>Aucune mission terminée pour l'instant</div>
               </div>
             ) : (
-              historique.map((m, i) => (
-                <div key={i} style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}`, marginBottom: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
+              {historique.map((m, i) => (
+                <div key={i} style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>{m.reference}</div>
                     <div style={{ fontSize: 11, background: C.green + '22', color: C.green, borderRadius: 6, padding: '3px 8px', fontFamily: 'sans-serif' }}>✅ Terminée</div>
@@ -376,7 +423,8 @@ export default function Livreur({ user, onLogout, logo }) {
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, fontFamily: 'sans-serif' }}>+{m.gain_livreur}€</div>
                   </div>
                 </div>
-              ))
+              ))}
+              </div>
             )}
           </div>
         )}
@@ -433,7 +481,7 @@ export default function Livreur({ user, onLogout, logo }) {
           </div>
         )}
         {onglet === 'profil' && (
-          <div style={{ padding: 16 }}>
+          <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 640 }}>
             {/* Avatar + nom */}
             <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 28, border: `1px solid ${C.border}`, textAlign: 'center', marginBottom: 16 }}>
               <div style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
@@ -522,7 +570,7 @@ export default function Livreur({ user, onLogout, logo }) {
         )}
 
         {onglet === 'gains' && (
-          <div style={{ padding: 16 }}>
+          <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 480 }}>
             <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 24, border: `1px solid ${C.accent}33`, textAlign: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Solde disponible</div>
               <div style={{ fontSize: 42, fontWeight: 700, color: C.accent, fontFamily: 'Georgia, serif', margin: '8px 0' }}>0,00€</div>
@@ -555,14 +603,17 @@ export default function Livreur({ user, onLogout, logo }) {
           onClose={() => setShowQR(false)}
         />
       )}
-      {/* Bottom nav */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: C.surface, borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50 }}>
-        {tabs.map(t => (
-          <div key={t.key} onClick={() => setOnglet(t.key)} style={{ flex: 1, padding: '12px 0 10px', textAlign: 'center', cursor: 'pointer', borderTop: onglet === t.key ? `2px solid ${C.accent}` : '2px solid transparent' }}>
-            <div style={{ fontSize: 20 }}>{t.icon}</div>
-            <div style={{ fontSize: 10, color: onglet === t.key ? C.accent : C.muted, marginTop: 2, fontFamily: 'sans-serif', fontWeight: onglet === t.key ? 700 : 400 }}>{t.label}</div>
-          </div>
-        ))}
+      {/* Bottom nav — mobile uniquement */}
+      {isMobile && (
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: C.surface, borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50 }}>
+          {tabs.map(t => (
+            <div key={t.key} onClick={() => setOnglet(t.key)} style={{ flex: 1, padding: '12px 0 10px', textAlign: 'center', cursor: 'pointer', borderTop: onglet === t.key ? `2px solid ${C.accent}` : '2px solid transparent' }}>
+              <div style={{ fontSize: 20 }}>{t.icon}</div>
+              <div style={{ fontSize: 10, color: onglet === t.key ? C.accent : C.muted, marginTop: 2, fontFamily: 'sans-serif', fontWeight: onglet === t.key ? 700 : 400 }}>{t.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
       </div>
     </div>
   );
