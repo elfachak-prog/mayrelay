@@ -23,5 +23,6 @@ export const getMesMissions = () => API.get('/missions/mes-missions');
 export const getProfilLivreur = () => API.get('/livreurs/profil');
 export const updatePhotoLivreur = (photo_url) => API.put('/livreurs/profil/photo', { photo_url });
 export const getStatsPartenaire = () => API.get('/paiements/stats-partenaire');
+export const envoyerPositionLivreur = (latitude, longitude) => API.post('/livreurs/position', { latitude, longitude });
 
 export default API;

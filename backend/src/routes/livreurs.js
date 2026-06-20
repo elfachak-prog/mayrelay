@@ -25,6 +25,22 @@ router.get('/profil', auth, async (req, res) => {
   }
 });
 
+// POST /api/livreurs/position — enregistrer la position GPS du livreur
+router.post('/position', auth, async (req, res) => {
+  const { latitude, longitude } = req.body;
+  if (latitude == null || longitude == null) return res.status(400).json({ message: 'Coordonnees manquantes' });
+  try {
+    await db.query(
+      'UPDATE livreurs SET latitude=$1, longitude=$2, position_updated_at=NOW() WHERE id=$3',
+      [latitude, longitude, req.user.id]
+    );
+    res.json({ message: 'Position mise a jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // PUT /api/livreurs/profil/photo — mettre à jour l'URL de photo
 router.put('/profil/photo', auth, async (req, res) => {
   const { photo_url } = req.body;

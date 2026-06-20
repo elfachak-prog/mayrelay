@@ -73,6 +73,14 @@ app.listen(PORT, async () => {
     console.error('Migration photo_url:', err.message);
   }
   try {
+    await db.query('ALTER TABLE livreurs ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION');
+    await db.query('ALTER TABLE livreurs ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION');
+    await db.query('ALTER TABLE livreurs ADD COLUMN IF NOT EXISTS position_updated_at TIMESTAMP');
+    console.log('Migration livreurs.gps OK');
+  } catch (err) {
+    console.error('Migration livreurs.gps:', err.message);
+  }
+  try {
     await db.query(`CREATE TABLE IF NOT EXISTS notifications (
       id SERIAL PRIMARY KEY,
       colis_id INTEGER REFERENCES colis(id) ON DELETE SET NULL,

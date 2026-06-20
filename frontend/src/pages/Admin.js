@@ -3,6 +3,7 @@ import API from '../services/api';
 import Parametres from './Parametres';
 import Finance from './Finance';
 import GestionSMS from './Sms';
+import CarteAdmin from './CarteAdmin';
 
 function useIsMobile() {
   const query = '(max-width: 767px)';
@@ -698,6 +699,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
     { key: 'partenaires', icon: '🏪', label: 'Partenaires' },
     { key: 'livreurs', icon: '🛵', label: 'Livreurs' },
     { key: 'colis', icon: '📦', label: 'Colis' },
+    { key: 'carte', icon: '🗺️', label: 'Carte' },
     { key: 'finance', icon: '💶', label: 'Finance' },
     { key: 'sms', icon: '💬', label: 'SMS Twilio' },
     { key: 'parametres', icon: '⚙️', label: 'Paramètres' },
@@ -713,6 +715,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
   ];
 
   const plusItems = [
+    { key: 'carte', icon: '🗺️', label: 'Carte' },
     { key: 'finance', icon: '💶', label: 'Finance' },
     { key: 'sms', icon: '💬', label: 'SMS Twilio' },
   ];
@@ -933,6 +936,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
           {onglet === 'partenaires' && <GestionPartenaires />}
           {onglet === 'livreurs' && <GestionLivreurs />}
           {onglet === 'colis' && <GestionColis />}
+          {onglet === 'carte' && <CarteAdmin />}
           {onglet === 'parametres' && <Parametres onLogoChange={onLogoChange} />}
           {onglet === 'finance' && <Finance />}
           {onglet === 'sms' && <GestionSMS />}

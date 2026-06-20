@@ -298,6 +298,30 @@ router.post('/demandes/:id/accepter', async (req, res) => {
 
 module.exports = router;
 
+// GET /api/admin/carte — partenaires actifs + livreurs en ligne (position < 30 min)
+router.get('/carte', async (req, res) => {
+  try {
+    const [partenaires, livreurs] = await Promise.all([
+      db.query(
+        `SELECT id, nom, adresse, zone, latitude, longitude
+         FROM partenaires
+         WHERE statut = 'actif' AND latitude IS NOT NULL AND longitude IS NOT NULL`
+      ),
+      db.query(
+        `SELECT id, nom, zone, vehicule, latitude, longitude, position_updated_at
+         FROM livreurs
+         WHERE statut = 'actif'
+           AND latitude IS NOT NULL AND longitude IS NOT NULL
+           AND position_updated_at > NOW() - INTERVAL '30 minutes'`
+      ),
+    ]);
+    res.json({ partenaires: partenaires.rows, livreurs: livreurs.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 router.get('/finance', async (req, res) => {
   try {
     const total = await db.query(`

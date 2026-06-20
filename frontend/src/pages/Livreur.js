@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur } from '../services/api';
+import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import QRCode from 'qrcode';
@@ -121,11 +121,28 @@ export default function Livreur({ user, onLogout, logo }) {
 
   const demarrerGeo = () => {
     if (!navigator.geolocation) { setGeoErreur('Geolocalisation non supportee'); return; }
+    let dernierePos = null;
+
+    const envoyer = (lat, lng) => {
+      envoyerPositionLivreur(lat, lng).catch(() => {});
+    };
+
     navigator.geolocation.watchPosition(
-      (pos) => setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude, precision: Math.round(pos.coords.accuracy) }),
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        dernierePos = { lat, lng };
+        setPosition({ lat, lng, precision: Math.round(accuracy) });
+      },
       () => setGeoErreur('Position indisponible'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
+
+    // Envoie la position au serveur toutes les 2 minutes
+    const intervalle = setInterval(() => {
+      if (dernierePos) envoyer(dernierePos.lat, dernierePos.lng);
+    }, 2 * 60 * 1000);
+
+    return () => clearInterval(intervalle);
   };
 
   const chargerMissions = async () => {
