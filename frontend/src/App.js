@@ -159,7 +159,7 @@ function App() {
             </div>
           )}
           {!['casiers', 'paiements', 'testqr', 'reception', 'parametres'].includes(ongletGlobal) && (
-            <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={isMobile} />
+            <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={isMobile} logo={logoUrl} />
           )}
         </div>
       </div>

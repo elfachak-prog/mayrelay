@@ -19,7 +19,60 @@ const statutConfig = {
 
 const quartiers = ["Mamoudzou Centre","Kaweni","Bandraboua","Koungou","Pamandzi","Dzaoudzi","Labattoir","Labattoir Centre","Boueni","Chiconi","Sada","Tsingoni","Mtsamboro"];
 
-export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
+const imprimerEtiquette = (c, logo) => {
+  const w = window.open('', '_blank', 'width=420,height=320');
+  const date = new Date(c.created_at).toLocaleDateString('fr-FR');
+  const nomComplet = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
+  const logoHtml = logo
+    ? `<img src="${logo}" style="height:24px;max-width:90px;object-fit:contain;display:block;" />`
+    : `<span style="font-size:11pt;font-weight:700;color:#0A4B6E;">MayRelay</span>`;
+
+  w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<style>
+  @page { size: 10cm 7cm; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 10cm; height: 7cm; font-family: Arial, Helvetica, sans-serif; background: #fff; }
+  .label { width: 10cm; height: 7cm; padding: 5px 7px; display: flex; flex-direction: column; border: 1px solid #bbb; }
+  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #0A4B6E; padding-bottom: 4px; margin-bottom: 5px; }
+  .ref { font-family: monospace; font-size: 9pt; font-weight: 700; color: #1A7FA8; letter-spacing: 0.5px; }
+  .badge { font-size: 7pt; background: #E8613A; color: #fff; padding: 2px 6px; border-radius: 3px; font-weight: 700; }
+  .main { display: flex; flex: 1; gap: 8px; align-items: flex-start; }
+  .qr img { width: 82px; height: 82px; display: block; }
+  .info { flex: 1; padding-top: 2px; }
+  .dest-name { font-size: 12pt; font-weight: 800; color: #0D1F2D; margin-bottom: 5px; line-height: 1.1; }
+  .row { font-size: 8pt; color: #444; margin-bottom: 4px; display: flex; gap: 4px; }
+  .row-label { color: #888; min-width: 10px; }
+  .row-val { font-weight: 600; color: #0D1F2D; }
+  .footer { border-top: 1px solid #ddd; padding-top: 3px; margin-top: 3px; font-size: 6.5pt; color: #aaa; display: flex; justify-content: space-between; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style></head><body>
+<div class="label">
+  <div class="header">
+    ${logoHtml}
+    <span class="ref">${c.reference}</span>
+    <span class="badge">${c.type || 'Colis'}</span>
+  </div>
+  <div class="main">
+    <div class="qr">${c.qr_code ? `<img src="${c.qr_code}" alt="QR" />` : ''}</div>
+    <div class="info">
+      <div class="dest-name">${nomComplet}</div>
+      <div class="row"><span class="row-label">📞</span><span class="row-val">${c.telephone_destinataire}</span></div>
+      <div class="row"><span class="row-label">📍</span><span class="row-val">${c.quartier}</span></div>
+      <div class="row"><span class="row-label">📅</span><span class="row-val">${date}</span></div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>mayrelay.vercel.app/suivi</span>
+    <span>${date}</span>
+  </div>
+</div>
+<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}</script>
+</body></html>`);
+  w.document.close();
+};
+
+export default function Dashboard({ user, onLogout, ongletInitial, isMobile, logo }) {
   const [onglet, setOnglet] = useState(ongletInitial || 'dashboard');
   const [colis, setColis] = useState([]);
   const [stats, setStats] = useState(null);
@@ -155,9 +208,17 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
                 📱 SMS envoyé au destinataire avec le lien de suivi
               </div>
               {succes.qr_code && <img src={succes.qr_code} alt="QR" style={{ width: 140, height: 140, marginBottom: 20 }} />}
-              <button onClick={() => setSucces(null)} style={{ background: COLORS.coral, color: COLORS.white, border: 'none', borderRadius: 12, padding: '14px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer', width: isMobile ? '100%' : 'auto' }}>
-                + Nouvel envoi
-              </button>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
+                <button
+                  onClick={() => imprimerEtiquette(succes, logo)}
+                  style={{ background: COLORS.white, color: COLORS.ocean, border: `2px solid ${COLORS.ocean}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                >
+                  🖨️ Imprimer l'étiquette
+                </button>
+                <button onClick={() => setSucces(null)} style={{ background: COLORS.coral, color: COLORS.white, border: 'none', borderRadius: 12, padding: '14px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                  + Nouvel envoi
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ background: COLORS.white, borderRadius: 20, padding: isMobile ? 20 : 32, border: `1px solid ${COLORS.border}` }}>
@@ -277,7 +338,15 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
                       <div style={{ fontSize: 12, color: '#888' }}>{c.quartier}</div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ocean }}>{c.prix}€</div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#AAA', marginTop: 4 }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    <div style={{ fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
+                    <button
+                      onClick={() => imprimerEtiquette(c, logo)}
+                      style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                    >
+                      🖨️ Étiquette
+                    </button>
+                  </div>
                   </div>
                 );
               })}
@@ -288,7 +357,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC' }}>
-                    {['Référence', 'Destinataire', 'Quartier', 'Type', 'Prix', 'Statut', 'Date'].map(h => (
+                    {['Référence', 'Destinataire', 'Quartier', 'Type', 'Prix', 'Statut', 'Date', ''].map(h => (
                       <th key={h} style={{ padding: '10px 16px', fontSize: 10, color: '#AAA', textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
@@ -305,6 +374,14 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile }) {
                         <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 600, color: COLORS.ocean }}>{c.prix}€</td>
                         <td style={{ padding: '13px 16px' }}><span style={{ background: s.bg, color: s.color, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.label}</span></td>
                         <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
+                        <td style={{ padding: '8px 16px' }}>
+                          <button
+                            onClick={() => imprimerEtiquette(c, logo)}
+                            style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
+                          >
+                            🖨️ Étiquette
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
