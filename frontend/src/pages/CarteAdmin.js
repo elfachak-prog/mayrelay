@@ -78,6 +78,12 @@ export default function CarteAdmin() {
     };
   }, []);
 
+  // Recalcule la taille de la carte quand le conteneur devient visible
+  useEffect(() => {
+    if (!mapRef.current || chargement || erreur) return;
+    mapRef.current.invalidateSize();
+  }, [chargement, erreur]);
+
   // Met à jour les marqueurs quand les données arrivent
   useEffect(() => {
     const map = mapRef.current;
