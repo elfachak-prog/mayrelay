@@ -14,6 +14,7 @@ const parametresRoutes = require('./routes/parametres');
 const suiviRoutes = require('./routes/suivi');
 const livreursRoutes = require('./routes/livreurs');
 const smsAdminRoutes = require('./routes/sms_admin');
+const inscriptionRoutes = require('./routes/inscription');
 const { verifierColisNonRecuperes } = require('./services/notifications');
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/parametres', parametresRoutes);
 app.use('/api/suivi', suiviRoutes);
 app.use('/api/livreurs', livreursRoutes);
 app.use('/api/admin/sms', smsAdminRoutes);
+app.use('/api/inscription', inscriptionRoutes);
 
 if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
   cron.schedule('0 * * * *', () => {
@@ -127,5 +129,27 @@ app.listen(PORT, async () => {
     console.log('Migration parametres tarifs OK');
   } catch (err) {
     console.error('Migration parametres tarifs:', err.message);
+  }
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS demandes_inscription (
+      id SERIAL PRIMARY KEY,
+      role TEXT NOT NULL CHECK (role IN ('partenaire', 'livreur')),
+      statut TEXT NOT NULL DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'accepte', 'refuse')),
+      nom TEXT NOT NULL,
+      telephone TEXT NOT NULL,
+      email TEXT,
+      nom_commerce TEXT,
+      adresse TEXT,
+      quartier TEXT,
+      type_commerce TEXT,
+      capacite_stockage TEXT,
+      zone_couverture TEXT,
+      type_vehicule TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`);
+    console.log('Migration demandes_inscription OK');
+  } catch (err) {
+    console.error('Migration demandes_inscription:', err.message);
   }
 });

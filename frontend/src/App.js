@@ -8,6 +8,7 @@ import Paiements from './pages/Paiements';
 import Suivi from './pages/Suivi';
 import TestQR from './pages/TestQR';
 import Reception from './pages/Reception';
+import Rejoindre from './pages/Rejoindre';
 import API from './services/api';
 
 function useIsMobile() {
@@ -50,6 +51,9 @@ function App() {
   const path = window.location.pathname;
   if (path === '/suivi' || path.startsWith('/suivi')) {
     return <Suivi />;
+  }
+  if (path === '/rejoindre') {
+    return <Rejoindre />;
   }
 
   if (!user) return <Login onLogin={handleLogin} />;

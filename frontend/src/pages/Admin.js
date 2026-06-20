@@ -507,6 +507,156 @@ function GestionColis() {
   );
 }
 
+function GestionDemandes() {
+  const [demandes, setDemandes] = useState([]);
+  const [filtre, setFiltre] = useState('en_attente');
+  const [chargement, setChargement] = useState(false);
+  const [action, setAction] = useState(null); // { id, type: 'accepter'|'refuser' }
+
+  useEffect(() => { charger(); }, []);
+
+  const charger = async () => {
+    try {
+      const res = await API.get('/admin/demandes');
+      setDemandes(res.data.demandes);
+    } catch (err) { console.error(err); }
+  };
+
+  const traiter = async (id, type) => {
+    setChargement(true);
+    try {
+      if (type === 'accepter') {
+        await API.post(`/admin/demandes/${id}/accepter`);
+      } else {
+        await API.put(`/admin/demandes/${id}/refuser`);
+      }
+      setAction(null);
+      await charger();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erreur lors du traitement');
+    }
+    setChargement(false);
+  };
+
+  const filtrees = demandes.filter(d => filtre === 'toutes' || d.statut === filtre);
+  const enAttente = demandes.filter(d => d.statut === 'en_attente').length;
+
+  const statutBadge = {
+    en_attente: { label: 'En attente', color: C.amber, bg: '#FEF3C7' },
+    accepte:    { label: 'Accepté',    color: C.green, bg: '#D1FAE5' },
+    refuse:     { label: 'Refusé',     color: C.red,   bg: '#FEE2E2' },
+  };
+
+  return (
+    <div>
+      {action && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.white, borderRadius: 16, padding: '32px 36px', width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: action.type === 'accepter' ? C.teal : C.red, fontFamily: 'Georgia, serif', marginBottom: 12 }}>
+              {action.type === 'accepter' ? 'Accepter la demande ?' : 'Refuser la demande ?'}
+            </div>
+            <div style={{ fontSize: 13, color: '#555', fontFamily: 'sans-serif', marginBottom: 20, lineHeight: 1.6 }}>
+              {action.type === 'accepter'
+                ? 'Un compte sera créé automatiquement et les identifiants seront envoyés par SMS au demandeur.'
+                : 'La demande sera marquée comme refusée. Le demandeur ne sera pas notifié automatiquement.'}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setAction(null)} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#F0F3F5', color: '#555', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+              <button onClick={() => traiter(action.id, action.type)} disabled={chargement} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: action.type === 'accepter' ? C.teal : C.red, color: C.white, fontSize: 13, fontWeight: 700, cursor: chargement ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
+                {chargement ? '…' : action.type === 'accepter' ? 'Accepter & créer le compte' : 'Refuser'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif', margin: 0 }}>Demandes d'inscription</h2>
+          <div style={{ fontSize: 13, color: '#888', marginTop: 2, fontFamily: 'sans-serif' }}>{demandes.length} demande(s) au total{enAttente > 0 && ` — ${enAttente} en attente`}</div>
+        </div>
+        <div style={{ display: 'flex', background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 4, gap: 2 }}>
+          {[['en_attente', 'En attente'], ['accepte', 'Acceptées'], ['refuse', 'Refusées'], ['toutes', 'Toutes']].map(([k, l]) => (
+            <button key={k} onClick={() => setFiltre(k)} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: filtre === k ? C.navy : 'transparent', color: filtre === k ? C.white : '#666', fontSize: 12, fontWeight: filtre === k ? 700 : 400, cursor: 'pointer', fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {l}
+              {k === 'en_attente' && enAttente > 0 && (
+                <span style={{ background: filtre === k ? 'rgba(255,255,255,0.25)' : '#FEF3C7', color: filtre === k ? C.white : C.amber, borderRadius: 20, padding: '0px 7px', fontSize: 11, fontWeight: 700 }}>{enAttente}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F8FAFC' }}>
+              {['Rôle', 'Nom / Commerce', 'Téléphone', 'Email', 'Infos', 'Date', 'Statut', 'Actions'].map(h => (
+                <th key={h} style={{ padding: '10px 16px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtrees.map((d, i) => {
+              const sb = statutBadge[d.statut] || statutBadge.en_attente;
+              return (
+                <tr key={d.id} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
+                  <td style={{ padding: '13px 16px' }}>
+                    <span style={{ fontSize: 18 }}>{d.role === 'partenaire' ? '🏪' : '🛵'}</span>
+                    <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>{d.role}</div>
+                  </td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>{d.role === 'partenaire' ? d.nom_commerce : d.nom}</div>
+                    {d.role === 'partenaire' && d.quartier && (
+                      <div style={{ fontSize: 11, color: '#999', fontFamily: 'sans-serif' }}>{d.quartier}</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '13px 16px', fontSize: 12, color: '#555', fontFamily: 'sans-serif' }}>{d.telephone}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 12, color: '#555', fontFamily: 'sans-serif' }}>{d.email || <span style={{ color: '#ccc' }}>—</span>}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 11, color: '#666', fontFamily: 'sans-serif', maxWidth: 180 }}>
+                    {d.role === 'partenaire' ? (
+                      <>
+                        {d.type_commerce && <div>🏬 {d.type_commerce}</div>}
+                        {d.capacite_stockage && <div>📦 Capacité : {d.capacite_stockage}</div>}
+                        {d.adresse && <div>📍 {d.adresse}</div>}
+                      </>
+                    ) : (
+                      <>
+                        {d.zone_couverture && <div>📍 {d.zone_couverture}</div>}
+                        {d.type_vehicule && <div>🚗 {d.type_vehicule}</div>}
+                      </>
+                    )}
+                  </td>
+                  <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA', fontFamily: 'sans-serif' }}>
+                    {new Date(d.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <Tag label={sb.label} color={sb.color} bg={sb.bg} />
+                  </td>
+                  <td style={{ padding: '13px 16px' }}>
+                    {d.statut === 'en_attente' && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => setAction({ id: d.id, type: 'accepter' })} style={{ background: '#D1FAE5', color: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>✓ Accepter</button>
+                        <button onClick={() => setAction({ id: d.id, type: 'refuser' })} style={{ background: '#FEE2E2', color: C.red, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>✕ Refuser</button>
+                      </div>
+                    )}
+                    {d.statut !== 'en_attente' && <span style={{ fontSize: 11, color: '#ccc', fontFamily: 'sans-serif' }}>Traité</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filtrees.length === 0 && (
+          <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>
+            {filtre === 'en_attente' ? 'Aucune demande en attente' : 'Aucune demande dans cette catégorie'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin({ user, onLogout, logo, onLogoChange }) {
   const [stats, setStats] = useState(null);
   const [onglet, setOnglet] = useState('dashboard');
@@ -520,8 +670,17 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
     } catch (err) { console.error(err); }
   };
 
+  const [nbDemandesAttente, setNbDemandesAttente] = useState(0);
+
+  useEffect(() => {
+    API.get('/admin/demandes')
+      .then(res => setNbDemandesAttente(res.data.demandes.filter(d => d.statut === 'en_attente').length))
+      .catch(() => {});
+  }, []);
+
   const navItems = [
     { key: 'dashboard', icon: '◈', label: 'Vue globale' },
+    { key: 'demandes', icon: '📋', label: 'Demandes', badge: nbDemandesAttente },
     { key: 'partenaires', icon: '🏪', label: 'Partenaires' },
     { key: 'livreurs', icon: '🛵', label: 'Livreurs' },
     { key: 'colis', icon: '📦', label: 'Colis' },
@@ -543,7 +702,11 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
         <div style={{ flex: 1, padding: '12px 10px' }}>
           {navItems.map(item => (
             <div key={item.key} onClick={() => setOnglet(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: onglet === item.key ? 'rgba(14,159,142,0.15)' : 'transparent', borderLeft: onglet === item.key ? `3px solid ${C.teal}` : '3px solid transparent', color: onglet === item.key ? '#fff' : C.muted, fontSize: 14 }}>
-              <span>{item.icon}</span><span>{item.label}</span>
+              <span>{item.icon}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.badge > 0 && (
+                <span style={{ background: C.amber, color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, minWidth: 18, textAlign: 'center' }}>{item.badge}</span>
+              )}
             </div>
           ))}
         </div>
@@ -708,6 +871,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
             )}
           </div>
         )}
+        {onglet === 'demandes' && <GestionDemandes />}
         {onglet === 'partenaires' && <GestionPartenaires />}
         {onglet === 'livreurs' && <GestionLivreurs />}
         {onglet === 'colis' && <GestionColis />}

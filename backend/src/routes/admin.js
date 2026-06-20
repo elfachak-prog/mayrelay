@@ -3,6 +3,12 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
+const { envoyerSMS } = require('../config/sms');
+
+const genererMotDePasse = () => {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+};
 
 router.post('/login', async (req, res) => {
   const { email, mot_de_passe } = req.body;
@@ -224,6 +230,70 @@ router.delete('/colis/:id', async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ message: 'Colis introuvable' });
     res.json({ message: 'Colis supprimé définitivement' });
   } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// ── Demandes d'inscription ──────────────────────────────────────────
+
+router.get('/demandes', async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT * FROM demandes_inscription ORDER BY created_at DESC'
+    );
+    res.json({ demandes: result.rows });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+router.put('/demandes/:id/refuser', async (req, res) => {
+  try {
+    const result = await db.query(
+      "UPDATE demandes_inscription SET statut='refuse', updated_at=NOW() WHERE id=$1 AND statut='en_attente' RETURNING id",
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Demande introuvable ou déjà traitée' });
+    res.json({ message: 'Demande refusée' });
+  } catch (err) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+router.post('/demandes/:id/accepter', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM demandes_inscription WHERE id=$1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Demande introuvable' });
+    const d = rows[0];
+    if (d.statut !== 'en_attente') return res.status(400).json({ message: 'Demande déjà traitée' });
+
+    const mdp = genererMotDePasse();
+    const hash = await bcrypt.hash(mdp, 10);
+
+    if (d.role === 'partenaire') {
+      await db.query(
+        `INSERT INTO partenaires (nom, email, mot_de_passe, telephone, zone, adresse, horaires, statut)
+         VALUES ($1,$2,$3,$4,$5,$6,'08:00-20:00','actif')`,
+        [d.nom_commerce || d.nom, d.email, hash, d.telephone, d.quartier || '', d.adresse || null]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO livreurs (nom, email, mot_de_passe, telephone, zone, vehicule, statut)
+         VALUES ($1,$2,$3,$4,$5,$6,'actif')`,
+        [d.nom, d.email, hash, d.telephone, d.zone_couverture || '', d.type_vehicule || '']
+      );
+    }
+
+    await db.query(
+      "UPDATE demandes_inscription SET statut='accepte', updated_at=NOW() WHERE id=$1",
+      [d.id]
+    );
+
+    const roleLabel = d.role === 'partenaire' ? 'partenaire relais' : 'livreur';
+    const emailInfo = d.email ? `Email : ${d.email} — ` : '';
+    const smsMsg = `MayRelay : Votre compte ${roleLabel} a ete cree ! ${emailInfo}Mot de passe : ${mdp} — Connectez-vous sur mayrelay.vercel.app`;
+    await envoyerSMS(d.telephone, smsMsg);
+
+    res.json({ message: 'Compte créé et identifiants envoyés par SMS', mot_de_passe: mdp });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ message: 'Un compte avec cet email existe déjà' });
+    console.error('Erreur accepter demande:', err.message);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
 });
 
 module.exports = router;
