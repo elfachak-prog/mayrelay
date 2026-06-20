@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
+import CarteMissions from '../components/CarteMissions';
 import QRCode from 'qrcode';
 
 function useIsMobile() {
@@ -263,6 +264,7 @@ export default function Livreur({ user, onLogout, logo }) {
           <div style={{ padding: isMobile ? 16 : 40 }}>
             <div style={{ fontSize: isMobile ? 14 : 20, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>Missions disponibles</div>
             <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>{missions.length} mission(s) disponible(s)</div>
+            <CarteMissions missions={missions} positionLivreur={position} />
             {missions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🛵</div>
