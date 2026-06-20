@@ -4,6 +4,18 @@ import Parametres from './Parametres';
 import Finance from './Finance';
 import GestionSMS from './Sms';
 
+function useIsMobile() {
+  const query = '(max-width: 767px)';
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 const C = {
   bg: "#F0F2F5", white: "#FFFFFF", navy: "#0B1F3A",
   teal: "#0E9F8E", amber: "#F59E0B", red: "#EF4444",
@@ -658,8 +670,10 @@ function GestionDemandes() {
 }
 
 export default function Admin({ user, onLogout, logo, onLogoChange }) {
+  const isMobile = useIsMobile();
   const [stats, setStats] = useState(null);
   const [onglet, setOnglet] = useState('dashboard');
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
 
   useEffect(() => { chargerStats(); }, []);
 
@@ -689,43 +703,87 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
     { key: 'parametres', icon: '⚙️', label: 'Paramètres' },
   ];
 
+  const bottomNavMain = [
+    { key: 'dashboard', icon: '◈', label: 'Accueil' },
+    { key: 'demandes', icon: '📋', label: 'Demandes', badge: nbDemandesAttente },
+    { key: 'partenaires', icon: '🏪', label: 'Partenaires' },
+    { key: 'livreurs', icon: '🛵', label: 'Livreurs' },
+    { key: 'colis', icon: '📦', label: 'Colis' },
+    { key: 'parametres', icon: '⚙️', label: 'Paramètres' },
+  ];
+
+  const plusItems = [
+    { key: 'finance', icon: '💶', label: 'Finance' },
+    { key: 'sms', icon: '💬', label: 'SMS Twilio' },
+  ];
+
+  const naviguer = (key) => {
+    setOnglet(key);
+    setPlusMenuOpen(false);
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
-      <div style={{ width: 220, background: C.navy, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          {logo
-            ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
-            : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
-          }
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
-        </div>
-        <div style={{ flex: 1, padding: '12px 10px' }}>
-          {navItems.map(item => (
-            <div key={item.key} onClick={() => setOnglet(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: onglet === item.key ? 'rgba(14,159,142,0.15)' : 'transparent', borderLeft: onglet === item.key ? `3px solid ${C.teal}` : '3px solid transparent', color: onglet === item.key ? '#fff' : C.muted, fontSize: 14 }}>
-              <span>{item.icon}</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge > 0 && (
-                <span style={{ background: C.amber, color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, minWidth: 18, textAlign: 'center' }}>{item.badge}</span>
-              )}
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>👑 {user.nom}</div>
-          <div onClick={onLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
-        </div>
-      </div>
 
-      <div style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
+      {/* Sidebar — desktop uniquement */}
+      {!isMobile && (
+        <div style={{ width: 220, background: C.navy, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            {logo
+              ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+              : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+            }
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
+          </div>
+          <div style={{ flex: 1, padding: '12px 10px' }}>
+            {navItems.map(item => (
+              <div key={item.key} onClick={() => setOnglet(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: onglet === item.key ? 'rgba(14,159,142,0.15)' : 'transparent', borderLeft: onglet === item.key ? `3px solid ${C.teal}` : '3px solid transparent', color: onglet === item.key ? '#fff' : C.muted, fontSize: 14 }}>
+                <span>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.badge > 0 && (
+                  <span style={{ background: C.amber, color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, minWidth: 18, textAlign: 'center' }}>{item.badge}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>👑 {user.nom}</div>
+            <div onClick={onLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
+          </div>
+        </div>
+      )}
+
+      {/* Colonne principale */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+        {/* Header mobile */}
+        {isMobile && (
+          <div style={{ background: C.navy, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div>
+              {logo
+                ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block', marginBottom: 2 }} />
+                : <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
+              }
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              <div style={{ fontSize: 11, color: '#fff' }}>👑 {user.nom}</div>
+              <div onClick={onLogout} style={{ fontSize: 10, color: C.teal, cursor: 'pointer' }}>Déconnexion</div>
+            </div>
+          </div>
+        )}
+
+        {/* Contenu */}
+        <div style={{ flex: 1, padding: isMobile ? '20px 16px' : '40px 48px', paddingBottom: isMobile ? 80 : undefined, overflowY: 'auto' }}>
         {onglet === 'dashboard' && (
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: C.navy, margin: '0 0 4px', fontFamily: 'Georgia, serif' }}>Bonjour, {user.nom} 👑</h1>
+            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: C.navy, margin: '0 0 4px', fontFamily: 'Georgia, serif' }}>Bonjour, {user.nom} 👑</h1>
             <div style={{ fontSize: 13, color: '#888', marginBottom: 28 }}>Tableau de bord MayRelay</div>
 
             {stats ? (
               <>
                 {/* ── 4 stat cards ─────────────────────────────────── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
                   {[
                     {
                       icon: '📦', label: 'Colis livrés', value: stats.colis_livres,
@@ -863,7 +921,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
                 )}
               </>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 14 }}>
                 {[1,2,3,4].map(i => (
                   <div key={i} style={{ borderRadius: 16, padding: '22px 24px', border: `1px solid ${C.border}`, height: 100, background: 'linear-gradient(90deg, #F8FAFC 25%, #F1F5F9 50%, #F8FAFC 75%)', backgroundSize: '200% 100%' }} />
                 ))}
@@ -871,14 +929,52 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
             )}
           </div>
         )}
-        {onglet === 'demandes' && <GestionDemandes />}
-        {onglet === 'partenaires' && <GestionPartenaires />}
-        {onglet === 'livreurs' && <GestionLivreurs />}
-        {onglet === 'colis' && <GestionColis />}
-        {onglet === 'parametres' && <Parametres onLogoChange={onLogoChange} />}
-        {onglet === 'finance' && <Finance />}
-        {onglet === 'sms' && <GestionSMS />}
+          {onglet === 'demandes' && <GestionDemandes />}
+          {onglet === 'partenaires' && <GestionPartenaires />}
+          {onglet === 'livreurs' && <GestionLivreurs />}
+          {onglet === 'colis' && <GestionColis />}
+          {onglet === 'parametres' && <Parametres onLogoChange={onLogoChange} />}
+          {onglet === 'finance' && <Finance />}
+          {onglet === 'sms' && <GestionSMS />}
+        </div>
       </div>
+
+      {/* Sous-menu "Plus" — overlay mobile */}
+      {isMobile && plusMenuOpen && (
+        <div onClick={() => setPlusMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 150 }}>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', bottom: 58, left: 0, right: 0, background: C.navy, borderTop: '1px solid rgba(255,255,255,0.12)', padding: '8px 0' }}>
+            {plusItems.map(item => (
+              <div key={item.key} onClick={() => naviguer(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', cursor: 'pointer', background: onglet === item.key ? 'rgba(14,159,142,0.2)' : 'transparent', borderLeft: onglet === item.key ? `3px solid ${C.teal}` : '3px solid transparent' }}>
+                <span style={{ fontSize: 20 }}>{item.icon}</span>
+                <span style={{ fontSize: 14, color: onglet === item.key ? '#fff' : C.muted, fontWeight: onglet === item.key ? 700 : 400 }}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom nav — mobile uniquement */}
+      {isMobile && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: C.navy, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', zIndex: 100 }}>
+          {bottomNavMain.map(item => {
+            const actif = onglet === item.key;
+            return (
+              <div key={item.key} onClick={() => naviguer(item.key)} style={{ flex: 1, padding: '10px 0 8px', textAlign: 'center', cursor: 'pointer', borderTop: actif ? `2px solid ${C.teal}` : '2px solid transparent', position: 'relative' }}>
+                <div style={{ fontSize: 18 }}>{item.icon}</div>
+                <div style={{ fontSize: 9, color: actif ? C.teal : C.muted, marginTop: 2, fontFamily: 'sans-serif', fontWeight: actif ? 700 : 400 }}>{item.label}</div>
+                {item.badge > 0 && (
+                  <span style={{ position: 'absolute', top: 6, right: '50%', transform: 'translateX(8px)', background: C.amber, color: '#fff', borderRadius: 20, padding: '0px 5px', fontSize: 9, fontWeight: 700 }}>{item.badge}</span>
+                )}
+              </div>
+            );
+          })}
+          {/* Bouton Plus */}
+          <div onClick={() => setPlusMenuOpen(o => !o)} style={{ flex: 1, padding: '10px 0 8px', textAlign: 'center', cursor: 'pointer', borderTop: plusMenuOpen || plusItems.some(p => p.key === onglet) ? `2px solid ${C.teal}` : '2px solid transparent' }}>
+            <div style={{ fontSize: 18 }}>···</div>
+            <div style={{ fontSize: 9, color: plusMenuOpen || plusItems.some(p => p.key === onglet) ? C.teal : C.muted, marginTop: 2, fontFamily: 'sans-serif', fontWeight: plusMenuOpen || plusItems.some(p => p.key === onglet) ? 700 : 400 }}>Plus</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
