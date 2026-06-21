@@ -139,6 +139,19 @@ app.listen(PORT, async () => {
     console.error('Migration parametres tarifs:', err.message);
   }
   try {
+    await db.query(`INSERT INTO parametres (cle, valeur) VALUES ('prix_volumineux_base', '8') ON CONFLICT (cle) DO NOTHING`);
+    await db.query(`INSERT INTO parametres (cle, valeur) VALUES ('prix_volumineux_par_kg', '1.5') ON CONFLICT (cle) DO NOTHING`);
+    console.log('Migration parametres volumineux OK');
+  } catch (err) {
+    console.error('Migration parametres volumineux:', err.message);
+  }
+  try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS poids NUMERIC(6,2)');
+    console.log('Migration colis.poids OK');
+  } catch (err) {
+    console.error('Migration colis.poids:', err.message);
+  }
+  try {
     await db.query(`CREATE TABLE IF NOT EXISTS demandes_inscription (
       id SERIAL PRIMARY KEY,
       role TEXT NOT NULL CHECK (role IN ('partenaire', 'livreur')),

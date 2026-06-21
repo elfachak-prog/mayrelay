@@ -442,6 +442,16 @@ export default function Parametres({ onLogoChange }) {
         <ParamRow label="Prix colis lourd (>5 kg)" description="Tarif pour un colis pesant plus de 5 kg" value={(params.prix_colis_lourd || '0') + ' €'} onSave={v => sauvegarder('prix_colis_lourd', v.replace('€','').trim())} />
         <ParamRow label="Prix palette / gros colis" description="Tarif pour une palette ou un très grand colis" value={(params.prix_palette || '0') + ' €'} onSave={v => sauvegarder('prix_palette', v.replace('€','').trim())} />
         <ParamRow label="Majoration urgence" description="Pourcentage de majoration appliqué pour une livraison express" value={(params.majoration_urgence || '0') + ' %'} onSave={v => sauvegarder('majoration_urgence', v.replace('%','').trim())} />
+        <div style={{ borderTop: `1px solid ${C.border}`, margin: '8px 0 0', paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 4 }}>
+            Colis volumineux — tarif au poids
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>
+            Prix final = prix de base + (poids − 5 kg) × prix par kg supplémentaire (si poids &gt; 5 kg)
+          </div>
+        </div>
+        <ParamRow label="Prix de base volumineux" description="Tarif fixe pour un colis volumineux (jusqu'à 5 kg inclus)" value={(params.prix_volumineux_base || '8') + ' €'} onSave={v => sauvegarder('prix_volumineux_base', v.replace('€','').trim())} />
+        <ParamRow label="Prix par kg supplémentaire" description="Coût additionnel par kg au-delà de 5 kg (colis volumineux)" value={(params.prix_volumineux_par_kg || '1.5') + ' €/kg'} onSave={v => sauvegarder('prix_volumineux_par_kg', v.replace('€/kg','').replace('€','').trim())} />
       </Section>
 
       <Section title="Commissions" icon="📊">

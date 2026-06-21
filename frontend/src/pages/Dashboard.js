@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMesColis, creerColis, getStatsPartenaire } from '../services/api';
+import API, { getMesColis, creerColis, getStatsPartenaire } from '../services/api';
 import SelecteurPays from '../components/SelecteurPays';
 
 const COLORS = {
@@ -84,12 +84,31 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
     nom_destinataire: '', prenom_destinataire: '',
     telephone_destinataire: '', telephone2_destinataire: '',
     email_destinataire: '', quartier: '', type: 'Colis', notes: '',
-    nom_expediteur: '', telephone_expediteur: '', email_expediteur: ''
+    nom_expediteur: '', telephone_expediteur: '', email_expediteur: '',
+    poids: ''
   });
   const [succes, setSucces] = useState(null);
+  const [tarifVolumineux, setTarifVolumineux] = useState({ base: 8, parKg: 1.5 });
 
-  useEffect(() => { chargerColis(); chargerStats(); }, []);
+  useEffect(() => {
+    chargerColis();
+    chargerStats();
+    API.get('/parametres').then(res => {
+      const p = res.data.parametres;
+      setTarifVolumineux({
+        base: parseFloat(p.prix_volumineux_base) || 8,
+        parKg: parseFloat(p.prix_volumineux_par_kg) || 1.5,
+      });
+    }).catch(() => {});
+  }, []);
   useEffect(() => { setOnglet(ongletInitial || 'dashboard'); }, [ongletInitial]);
+
+  const calculerPrixVolumineux = (poids) => {
+    const p = parseFloat(poids) || 0;
+    if (p <= 0) return null;
+    const prix = p > 5 ? tarifVolumineux.base + (p - 5) * tarifVolumineux.parKg : tarifVolumineux.base;
+    return +prix.toFixed(2);
+  };
 
   const chargerColis = async () => {
     try {
@@ -107,6 +126,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
 
   const handleEnvoi = async () => {
     if (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier) return;
+    if (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0)) return;
     setChargement(true);
     try {
       const tel1 = paysD1 + form.telephone_destinataire.replace(/^0/, '');
@@ -114,7 +134,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
       const telExp = form.telephone_expediteur ? paysE + form.telephone_expediteur.replace(/^0/, '') : '';
       const res = await creerColis({ ...form, telephone_destinataire: tel1, telephone2_destinataire: tel2, telephone_expediteur: telExp });
       setSucces(res.data.colis);
-      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '' });
+      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '' });
       chargerColis();
       chargerStats();
     } catch (err) { console.error(err); }
@@ -269,14 +289,47 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
 
               <div style={{ marginTop: 14 }}>
                 <label style={labelStyle}>Type</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {['Colis', 'Courrier'].map(t => (
-                    <div key={t} onClick={() => setForm({ ...form, type: t })} style={{ flex: 1, padding: 12, border: `2px solid ${form.type === t ? COLORS.lagoon : COLORS.border}`, borderRadius: 10, cursor: 'pointer', textAlign: 'center', fontSize: 14, color: form.type === t ? COLORS.lagoon : '#888', background: form.type === t ? COLORS.foam : COLORS.white, fontWeight: form.type === t ? 700 : 400 }}>
-                      {t === 'Colis' ? '📦' : '✉️'} {t} — {t === 'Colis' ? '5€' : '3€'}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'Colis', icon: '📦', label: 'Colis standard', prix: '5 €' },
+                    { key: 'Courrier', icon: '✉️', label: 'Courrier', prix: '3 €' },
+                    { key: 'Volumineux', icon: '📫', label: 'Volumineux', prix: 'au poids' },
+                  ].map(t => (
+                    <div key={t.key} onClick={() => setForm({ ...form, type: t.key, poids: '' })} style={{ flex: 1, minWidth: 100, padding: 12, border: `2px solid ${form.type === t.key ? COLORS.lagoon : COLORS.border}`, borderRadius: 10, cursor: 'pointer', textAlign: 'center', fontSize: 13, color: form.type === t.key ? COLORS.lagoon : '#888', background: form.type === t.key ? COLORS.foam : COLORS.white, fontWeight: form.type === t.key ? 700 : 400 }}>
+                      {t.icon} {t.label}<br /><span style={{ fontSize: 11 }}>{t.prix}</span>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {form.type === 'Volumineux' && (
+                <div style={{ marginTop: 14 }}>
+                  <label style={labelStyle}>Poids (kg) *</label>
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={form.poids}
+                    onChange={e => setForm({ ...form, poids: e.target.value })}
+                    placeholder="ex : 7.5"
+                  />
+                  {form.poids && parseFloat(form.poids) > 0 && (() => {
+                    const prix = calculerPrixVolumineux(form.poids);
+                    const poids = parseFloat(form.poids);
+                    return (
+                      <div style={{ marginTop: 10, background: COLORS.foam, borderRadius: 10, padding: '12px 16px', borderLeft: `3px solid ${COLORS.lagoon}` }}>
+                        <div style={{ fontSize: 12, color: COLORS.mid, fontFamily: 'sans-serif', marginBottom: 4 }}>
+                          Prix calculé ({tarifVolumineux.base} € de base{poids > 5 ? ` + ${(poids - 5).toFixed(1)} kg × ${tarifVolumineux.parKg} €/kg` : ''})
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.ocean, fontFamily: 'Georgia, serif' }}>
+                          {prix} €
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div style={{ marginTop: 14 }}>
                 <label style={labelStyle}>Notes (optionnel)</label>
@@ -309,8 +362,8 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
 
               <button
                 onClick={handleEnvoi}
-                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.quartier}
-                style={{ marginTop: 20, width: '100%', padding: 16, background: !form.nom_destinataire || !form.telephone_destinataire || !form.quartier ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.quartier || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))}
+                style={{ marginTop: 20, width: '100%', padding: 16, background: (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))) ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
               >
                 {chargement ? 'Enregistrement...' : "Enregistrer l'envoi →"}
               </button>
@@ -370,7 +423,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                         <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontSize: 12, color: COLORS.ocean, fontWeight: 600 }}>{c.reference}</td>
                         <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 600, color: COLORS.dark }}>{c.nom_destinataire}</td>
                         <td style={{ padding: '13px 16px', fontSize: 12, color: '#666' }}>{c.quartier}</td>
-                        <td style={{ padding: '13px 16px', fontSize: 12 }}>{c.type === 'Colis' ? '📦' : '✉️'} {c.type}</td>
+                        <td style={{ padding: '13px 16px', fontSize: 12 }}>{c.type === 'Courrier' ? '✉️' : c.type === 'Volumineux' ? '📫' : '📦'} {c.type}</td>
                         <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 600, color: COLORS.ocean }}>{c.prix}€</td>
                         <td style={{ padding: '13px 16px' }}><span style={{ background: s.bg, color: s.color, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.label}</span></td>
                         <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>

@@ -9,17 +9,32 @@ const genererReference = () => {
 };
 
 const creerColis = async (req, res) => {
-  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur } = req.body;
+  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids } = req.body;
   try {
     const reference = genererReference();
-    const prix = type === 'Courrier' ? 3.00 : 5.00;
     const partenaire_id = req.user.id;
+
+    let prix;
+    if (type === 'Courrier') {
+      prix = 3.00;
+    } else if (type === 'Volumineux') {
+      const paramsRes = await db.query("SELECT cle, valeur FROM parametres WHERE cle IN ('prix_volumineux_base','prix_volumineux_par_kg')");
+      const p = {};
+      paramsRes.rows.forEach(r => { p[r.cle] = parseFloat(r.valeur) || 0; });
+      const base = p.prix_volumineux_base || 8;
+      const parKg = p.prix_volumineux_par_kg || 1.5;
+      const poidsVal = parseFloat(poids) || 0;
+      prix = poidsVal > 5 ? +(base + (poidsVal - 5) * parKg).toFixed(2) : base;
+    } else {
+      prix = 5.00;
+    }
+
     const qrData = JSON.stringify({ reference, partenaire_id });
     const qr_code = await QRCode.toDataURL(qrData);
 
     const result = await db.query(
-      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *",
-      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur]
+      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *",
+      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids || null]
     );
 
     const colis = result.rows[0];
