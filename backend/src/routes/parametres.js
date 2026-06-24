@@ -17,8 +17,8 @@ router.put('/:cle', async (req, res) => {
   try {
     const { valeur } = req.body;
     await db.query(
-      `INSERT INTO parametres (cle, valeur, updated_at) VALUES ($2, $1, NOW())
-       ON CONFLICT (cle) DO UPDATE SET valeur = $1, updated_at = NOW()`,
+      `INSERT INTO parametres (cle, valeur) VALUES ($2, $1)
+       ON CONFLICT (cle) DO UPDATE SET valeur = EXCLUDED.valeur`,
       [valeur, req.params.cle]
     );
     res.json({ message: 'Parametre mis a jour' });

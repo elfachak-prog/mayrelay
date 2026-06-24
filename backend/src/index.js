@@ -68,6 +68,17 @@ const TEMPLATES_DEFAUT = [
 app.listen(PORT, async () => {
   console.log('Serveur MayRelay demarre sur le port ' + PORT);
   try {
+    await db.query(`CREATE TABLE IF NOT EXISTS parametres (
+      cle TEXT PRIMARY KEY,
+      valeur TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await db.query('ALTER TABLE parametres ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+    console.log('Migration parametres schema OK');
+  } catch (err) {
+    console.error('Migration parametres schema:', err.message);
+  }
+  try {
     await db.query('ALTER TABLE livreurs ADD COLUMN IF NOT EXISTS photo_url TEXT');
     console.log('Migration livreurs.photo_url OK');
   } catch (err) {
