@@ -595,18 +595,108 @@ export default function Livreur({ user, onLogout, logo }) {
           </div>
         )}
 
-        {onglet === 'gains' && (
-          <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 480 }}>
-            <div style={{ background: 'linear-gradient(135deg, #1A3A50 0%, #0F2535 100%)', borderRadius: 20, padding: 24, border: `1px solid ${C.accent}33`, textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Solde disponible</div>
-              <div style={{ fontSize: 42, fontWeight: 700, color: C.accent, fontFamily: 'Georgia, serif', margin: '8px 0' }}>0,00€</div>
-              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>Seuil minimum de retrait : 10€</div>
+        {onglet === 'gains' && (() => {
+          const now = new Date();
+          const jourSemaine = now.getDay() === 0 ? 6 : now.getDay() - 1;
+          const debutSemaine = new Date(now);
+          debutSemaine.setDate(now.getDate() - jourSemaine);
+          debutSemaine.setHours(0, 0, 0, 0);
+          const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+
+          const gainMois = historique
+            .filter(m => new Date(m.created_at) >= debutMois)
+            .reduce((s, m) => s + parseFloat(m.gain_livreur || 0), 0);
+
+          const gainSemaine = historique
+            .filter(m => new Date(m.created_at) >= debutSemaine)
+            .reduce((s, m) => s + parseFloat(m.gain_livreur || 0), 0);
+
+          const missionsSemaine = historique.filter(m => new Date(m.created_at) >= debutSemaine).length;
+
+          const semaines = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(debutSemaine);
+            d.setDate(debutSemaine.getDate() - (6 - i) * 7);
+            return d;
+          });
+
+          const gainsParSemaine = semaines.map(lundi => {
+            const fin = new Date(lundi);
+            fin.setDate(lundi.getDate() + 7);
+            const gain = historique
+              .filter(m => { const d = new Date(m.created_at); return d >= lundi && d < fin; })
+              .reduce((s, m) => s + parseFloat(m.gain_livreur || 0), 0);
+            return { label: `${lundi.getDate()}/${lundi.getMonth() + 1}`, gain };
+          });
+
+          const maxGain = Math.max(...gainsParSemaine.map(s => s.gain), 1);
+
+          return (
+            <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 520 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+                <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.accent, fontFamily: 'Georgia, serif' }}>{gainMois.toFixed(2)}€</div>
+                  <div style={{ fontSize: 9, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Gain ce mois</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.green, fontFamily: 'Georgia, serif' }}>{gainSemaine.toFixed(2)}€</div>
+                  <div style={{ fontSize: 9, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Gain cette semaine</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 14, padding: '16px 10px', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: C.blue, fontFamily: 'Georgia, serif' }}>{missionsSemaine}</div>
+                  <div style={{ fontSize: 9, color: C.muted, fontFamily: 'sans-serif', marginTop: 4, lineHeight: 1.3 }}>Missions cette semaine</div>
+                </div>
+              </div>
+
+              <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>7 dernières semaines</div>
+                <svg viewBox="0 0 340 150" style={{ width: '100%', display: 'block' }}>
+                  <line x1={0} y1={10} x2={340} y2={10} stroke={C.border} strokeWidth={1} strokeDasharray="4 4" />
+                  <line x1={0} y1={65} x2={340} y2={65} stroke={C.border} strokeWidth={1} strokeDasharray="4 4" />
+                  <line x1={0} y1={120} x2={340} y2={120} stroke={C.border} strokeWidth={1} />
+                  <text x={338} y={14} textAnchor="end" fontSize={8} fill={C.muted}>{maxGain.toFixed(0)}€</text>
+                  <text x={338} y={69} textAnchor="end" fontSize={8} fill={C.muted}>{(maxGain / 2).toFixed(0)}€</text>
+                  {gainsParSemaine.map((s, i) => {
+                    const slotW = 340 / 7;
+                    const barW = slotW * 0.55;
+                    const barMaxH = 110;
+                    const barH = s.gain > 0 ? (s.gain / maxGain) * barMaxH : 2;
+                    const x = slotW * i + (slotW - barW) / 2;
+                    const y = 10 + barMaxH - barH;
+                    const isCurrent = i === 6;
+                    return (
+                      <g key={i}>
+                        <rect x={x} y={y} width={barW} height={barH} rx={3}
+                          fill={isCurrent ? C.green : C.accent}
+                          opacity={s.gain === 0 ? 0.2 : 1}
+                        />
+                        {s.gain > 0 && (
+                          <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={8} fill={C.white}>
+                            {s.gain % 1 === 0 ? s.gain.toFixed(0) : s.gain.toFixed(1)}€
+                          </text>
+                        )}
+                        <text x={x + barW / 2} y={140} textAnchor="middle" fontSize={9}
+                          fill={isCurrent ? C.green : C.muted}
+                          fontWeight={isCurrent ? '700' : '400'}>
+                          {s.label}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted, fontFamily: 'sans-serif' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: C.accent }} />
+                    Semaines passées
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted, fontFamily: 'sans-serif' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: C.green }} />
+                    Semaine actuelle
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}`, textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif' }}>Acceptez vos premieres missions pour voir vos gains ici</div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* QR Scanner Test */}
