@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { login } from '../services/api';
 import API from '../services/api';
 
@@ -6,6 +6,13 @@ export default function Login({ onLogin }) {
   const [form, setForm] = useState({ email: '', mot_de_passe: '', role: 'partenaire' });
   const [erreur, setErreur] = useState('');
   const [chargement, setChargement] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+
+  useEffect(() => {
+    API.get('/parametres')
+      .then(res => setLogoUrl(res.data.parametres?.logo_url || ''))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async () => {
     setChargement(true);
@@ -39,7 +46,10 @@ export default function Login({ onLogin }) {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0A4B6E 0%, #0D1F2D 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '48px 40px', width: 380, boxShadow: '0 32px 80px rgba(0,0,0,0.4)' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🏝️</div>
+          {logoUrl
+            ? <img src={logoUrl} alt="Logo" style={{ height: 48, maxWidth: 160, objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
+            : <div style={{ fontSize: 40, marginBottom: 8 }}>🏝️</div>
+          }
           <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>MayRelay</div>
           <div style={{ fontSize: 12, color: '#4A7B94', marginTop: 4, letterSpacing: 2, textTransform: 'uppercase' }}>Connexion</div>
         </div>

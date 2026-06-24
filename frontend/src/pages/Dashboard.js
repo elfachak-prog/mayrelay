@@ -89,6 +89,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
   });
   const [succes, setSucces] = useState(null);
   const [tarifVolumineux, setTarifVolumineux] = useState({ base: 8, parKg: 1.5 });
+  const [logoLocal, setLogoLocal] = useState(logo || '');
 
   useEffect(() => {
     chargerColis();
@@ -99,6 +100,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
         base: parseFloat(p.prix_volumineux_base) || 8,
         parKg: parseFloat(p.prix_volumineux_par_kg) || 1.5,
       });
+      setLogoLocal(p.logo_url || '');
     }).catch(() => {});
   }, []);
   useEffect(() => { setOnglet(ongletInitial || 'dashboard'); }, [ongletInitial]);
@@ -230,7 +232,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
               {succes.qr_code && <img src={succes.qr_code} alt="QR" style={{ width: 140, height: 140, marginBottom: 20 }} />}
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
                 <button
-                  onClick={() => imprimerEtiquette(succes, logo)}
+                  onClick={() => imprimerEtiquette(succes, logoLocal)}
                   style={{ background: COLORS.white, color: COLORS.ocean, border: `2px solid ${COLORS.ocean}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
                 >
                   🖨️ Imprimer l'étiquette
@@ -394,7 +396,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                     <div style={{ fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
                     <button
-                      onClick={() => imprimerEtiquette(c, logo)}
+                      onClick={() => imprimerEtiquette(c, logoLocal)}
                       style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
                     >
                       🖨️ Étiquette
@@ -429,7 +431,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                         <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
                         <td style={{ padding: '8px 16px' }}>
                           <button
-                            onClick={() => imprimerEtiquette(c, logo)}
+                            onClick={() => imprimerEtiquette(c, logoLocal)}
                             style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
                           >
                             🖨️ Étiquette
