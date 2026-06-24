@@ -672,9 +672,21 @@ function GestionDemandes() {
 
 export default function Admin({ user, onLogout, logo, onLogoChange }) {
   const isMobile = useIsMobile();
+  const [logoLocal, setLogoLocal] = useState(logo || '');
   const [stats, setStats] = useState(null);
   const [onglet, setOnglet] = useState('dashboard');
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+
+  useEffect(() => {
+    API.get('/parametres')
+      .then(res => setLogoLocal(res.data.parametres?.logo_url || ''))
+      .catch(() => {});
+  }, []);
+
+  const handleLogoChange = (url) => {
+    setLogoLocal(url);
+    if (onLogoChange) onLogoChange(url);
+  };
 
   useEffect(() => { chargerStats(); }, []);
 
@@ -732,8 +744,8 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
       {!isMobile && (
         <div style={{ width: 220, background: C.navy, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {logo
-              ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+            {logoLocal
+              ? <img src={logoLocal} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: 6 }} />
               : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
             }
             <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
@@ -763,8 +775,8 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
         {isMobile && (
           <div style={{ background: C.navy, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div>
-              {logo
-                ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block', marginBottom: 2 }} />
+              {logoLocal
+                ? <img src={logoLocal} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: 2 }} />
                 : <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
               }
               <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: 'uppercase' }}>Administration</div>
@@ -937,7 +949,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
           {onglet === 'livreurs' && <GestionLivreurs />}
           {onglet === 'colis' && <GestionColis />}
           {onglet === 'carte' && <CarteAdmin />}
-          {onglet === 'parametres' && <Parametres onLogoChange={onLogoChange} />}
+          {onglet === 'parametres' && <Parametres onLogoChange={handleLogoChange} />}
           {onglet === 'finance' && <Finance />}
           {onglet === 'sms' && <GestionSMS />}
         </div>

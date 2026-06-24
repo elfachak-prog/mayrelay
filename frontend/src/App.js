@@ -79,7 +79,7 @@ function App() {
         <div style={{ width: 220, background: '#0D1F2D', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {logoUrl
-              ? <img src={logoUrl} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+              ? <img src={logoUrl} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: 6 }} />
               : <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
             }
             <div style={{ fontSize: 10, color: '#4A7B94', marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
@@ -106,7 +106,7 @@ function App() {
           <div style={{ background: '#0D1F2D', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div>
               {logoUrl
-                ? <img src={logoUrl} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block', marginBottom: 2 }} />
+                ? <img src={logoUrl} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: 2 }} />
                 : <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>🏝️ MayRelay</div>
               }
               <div style={{ fontSize: 9, color: '#4A7B94', letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
+import API, { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import CarteMissions from '../components/CarteMissions';
@@ -76,6 +76,7 @@ function MissionCard({ mission, onAccepter }) {
 
 export default function Livreur({ user, onLogout, logo }) {
   const isMobile = useIsMobile();
+  const [logoLocal, setLogoLocal] = useState(logo || '');
   const [onglet, setOnglet] = useState('missions');
   const [missions, setMissions] = useState([]);
   const [missionEnCours, setMissionEnCours] = useState(null);
@@ -96,6 +97,12 @@ export default function Livreur({ user, onLogout, logo }) {
   const [profil, setProfil] = useState(null);
   const [editPhoto, setEditPhoto] = useState(false);
   const [photoInput, setPhotoInput] = useState('');
+
+  useEffect(() => {
+    API.get('/parametres')
+      .then(res => setLogoLocal(res.data.parametres?.logo_url || ''))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     chargerMissions();
@@ -214,8 +221,8 @@ export default function Livreur({ user, onLogout, logo }) {
       {!isMobile && (
         <div style={{ width: 220, background: C.surface, display: 'flex', flexDirection: 'column', borderRight: `1px solid ${C.border}` }}>
           <div style={{ padding: '28px 24px 20px', borderBottom: `1px solid ${C.border}` }}>
-            {logo
-              ? <img src={logo} alt="Logo" style={{ maxHeight: 40, maxWidth: 160, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+            {logoLocal
+              ? <img src={logoLocal} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: 6 }} />
               : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
             }
             <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Espace Livreur</div>
@@ -243,8 +250,8 @@ export default function Livreur({ user, onLogout, logo }) {
       {isMobile && (
         <div style={{ padding: '20px 20px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: C.bg, zIndex: 100 }}>
           <div>
-            {logo
-              ? <img src={logo} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', display: 'block' }} />
+            {logoLocal
+              ? <img src={logoLocal} alt="Logo" style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }} />
               : <div style={{ fontSize: 20, fontWeight: 700, color: C.white, fontFamily: 'Georgia, serif' }}>🏝️ MayRelay</div>
             }
             <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Espace Livreur — {user.nom}</div>
