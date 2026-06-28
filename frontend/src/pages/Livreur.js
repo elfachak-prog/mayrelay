@@ -97,6 +97,7 @@ export default function Livreur({ user, onLogout, logo }) {
   const [profil, setProfil] = useState(null);
   const [editPhoto, setEditPhoto] = useState(false);
   const [photoInput, setPhotoInput] = useState('');
+  const [secondesDepuisMAJ, setSecondesDepuisMAJ] = useState(0);
 
   useEffect(() => {
     API.get('/parametres')
@@ -157,10 +158,20 @@ export default function Livreur({ user, onLogout, logo }) {
     try {
       const res = await getMissionsDisponibles();
       setMissions(res.data.missions);
+      setSecondesDepuisMAJ(0);
     } catch (err) {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    const intervalRefresh = setInterval(chargerMissions, 30000);
+    const intervalCompteur = setInterval(() => setSecondesDepuisMAJ(s => s + 1), 1000);
+    return () => {
+      clearInterval(intervalRefresh);
+      clearInterval(intervalCompteur);
+    };
+  }, []);
 
   const handleAccepter = async (id) => {
     try {
@@ -270,7 +281,8 @@ export default function Livreur({ user, onLogout, logo }) {
         {onglet === 'missions' && (
           <div style={{ padding: isMobile ? 16 : 40 }}>
             <div style={{ fontSize: isMobile ? 14 : 20, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>Missions disponibles</div>
-            <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>{missions.length} mission(s) disponible(s)</div>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>{missions.length} mission(s) disponible(s)</div>
+            <div style={{ fontSize: 11, color: C.border, fontFamily: 'sans-serif', marginBottom: 16 }}>↻ Mis à jour il y a {secondesDepuisMAJ}s</div>
             <CarteMissions missions={missions} positionLivreur={position} />
             {missions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
