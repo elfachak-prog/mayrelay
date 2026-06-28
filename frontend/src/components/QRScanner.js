@@ -21,6 +21,8 @@ export default function QRScanner({ onScan, onClose }) {
   const scannerRef = useRef(null);
   const runningRef = useRef(false);
   const [erreur, setErreur] = useState('');
+  const [modeManuel, setModeManuel] = useState(false);
+  const [refManuelle, setRefManuelle] = useState('');
 
   useEffect(() => {
     const scanner = new Html5Qrcode('qr-reader');
@@ -70,12 +72,45 @@ export default function QRScanner({ onScan, onClose }) {
     onClose();
   };
 
+  const handleModeManuel = () => {
+    if (runningRef.current) {
+      runningRef.current = false;
+      scannerRef.current?.stop().catch(() => {});
+    }
+    setModeManuel(true);
+  };
+
+  const handleValiderRef = () => {
+    const ref = refManuelle.trim();
+    if (!ref) return;
+    bip();
+    onScan(ref);
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 20, fontFamily: 'sans-serif' }}>📷 Scanner le QR code du colis</div>
       <div id="qr-reader" style={{ width: 300, borderRadius: 12, overflow: 'hidden' }} />
       {erreur && <div style={{ color: '#EF4444', fontSize: 13, marginTop: 16, textAlign: 'center', fontFamily: 'sans-serif' }}>{erreur}</div>}
-      <button onClick={handleFermer} style={{ marginTop: 24, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '12px 28px', fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+      {modeManuel && (
+        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: 300 }}>
+          <div style={{ color: '#fff', fontSize: 14, fontFamily: 'sans-serif' }}>Référence du colis (ex: MR-2026-XXXX)</div>
+          <input
+            type="text"
+            value={refManuelle}
+            onChange={e => setRefManuelle(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleValiderRef()}
+            placeholder="MR-2026-XXXX"
+            autoFocus
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 16, fontFamily: 'sans-serif', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <button onClick={handleValiderRef} style={{ width: '100%', background: '#3B82F6', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 28px', fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 600 }}>Valider</button>
+        </div>
+      )}
+      <button onClick={handleFermer} style={{ marginTop: 16, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '12px 28px', fontSize: 14, cursor: 'pointer', fontFamily: 'sans-serif' }}>Annuler</button>
+      {!modeManuel && (
+        <button onClick={handleModeManuel} style={{ marginTop: 10, background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', padding: '8px 20px', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif', textDecoration: 'underline' }}>Saisir manuellement</button>
+      )}
     </div>
   );
 }
