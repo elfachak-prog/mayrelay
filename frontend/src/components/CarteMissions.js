@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const MAYOTTE = { lat: -12.8275, lng: 45.1662, zoom: 11 };
+const MAYOTTE_BOUNDS = [[-13.1, 44.9], [-12.5, 45.4]];
 
 const C = {
   card: "#1E3040", border: "#263D50", blue: "#3A9FE8",
@@ -48,15 +48,12 @@ export default function CarteMissions({ missions, positionLivreur }) {
   // Initialise la carte une seule fois
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, {
-      center: [MAYOTTE.lat, MAYOTTE.lng],
-      zoom: MAYOTTE.zoom,
-      zoomControl: false,
-    });
+    const map = L.map(containerRef.current, { zoomControl: false });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://openstreetmap.org/copyright" style="color:#6B8FA8">OSM</a>',
     }).addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
+    map.fitBounds(MAYOTTE_BOUNDS);
     mapRef.current = map;
     return () => {
       map.remove();
@@ -125,6 +122,8 @@ export default function CarteMissions({ missions, positionLivreur }) {
       map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40], maxZoom: 13 });
     } else if (bounds.length === 1) {
       map.setView(bounds[0], 13);
+    } else {
+      map.fitBounds(MAYOTTE_BOUNDS);
     }
   }, [missions, positionLivreur]);
 
