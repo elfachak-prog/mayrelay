@@ -119,6 +119,7 @@ function TextAreaRow({ label, description, value, onSave }) {
 
 function SimulateurMarge({ params }) {
   const [prix, setPrix] = useState('');
+  const [nbColis, setNbColis] = useState(100);
 
   const p = parseFloat(prix) || 0;
   const expPct   = parseFloat(params.commission_partenaire_exp) || 0;
@@ -149,8 +150,8 @@ function SimulateurMarge({ params }) {
   return (
     <Section title="Simulateur de marge" icon="🧮">
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        {/* Entrée prix */}
-        <div style={{ flex: '0 0 220px' }}>
+        {/* Entrée prix + curseur colis */}
+        <div style={{ flex: '0 0 240px' }}>
           <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>
             Prix facturé au client (€)
           </div>
@@ -169,6 +170,24 @@ function SimulateurMarge({ params }) {
               <strong style={{ color: C.navy }}>{prixUrgent.toFixed(2)} €</strong>
             </div>
           )}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Colis / mois</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: C.navy, fontFamily: 'Georgia, serif' }}>{nbColis}</span>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="500"
+              step="10"
+              value={nbColis}
+              onChange={e => setNbColis(parseInt(e.target.value))}
+              style={{ width: '100%', accentColor: C.teal, cursor: 'pointer' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>
+              <span>10</span><span>500</span>
+            </div>
+          </div>
         </div>
 
         {/* Répartition standard */}
@@ -239,6 +258,75 @@ function SimulateurMarge({ params }) {
           </div>
         )}
       </div>
+
+      {/* Revenus mensuels estimés */}
+      {p > 0 && (
+        <div style={{ marginTop: 24, background: '#F0FDF8', border: `1.5px solid ${C.teal}`, borderRadius: 14, padding: '20px 24px' }}>
+          <div style={{ fontSize: 12, color: C.teal, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 14 }}>
+            Revenus mensuels estimés — {nbColis} colis/mois
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {lignes.map(l => {
+              const mensuel = l.montant * nbColis;
+              return (
+                <div key={l.label} style={{ flex: '1 1 160px', background: C.white, borderRadius: 10, border: `1.5px solid ${l.color}22`, padding: '14px 18px', boxShadow: `0 2px 8px ${l.color}18` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>
+                    {l.pct}% × {l.montant.toFixed(2)} €/colis
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: l.color, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
+                    {mensuel.toFixed(0)} €
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>par mois</div>
+                </div>
+              );
+            })}
+            {/* Marge nette MayRelay */}
+            <div style={{ flex: '1 1 160px', background: margeNette >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, border: `1.5px solid ${margeNette >= 0 ? C.green : C.red}44`, padding: '14px 18px', boxShadow: `0 2px 8px ${margeNette >= 0 ? C.green : C.red}18` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: margeNette >= 0 ? C.green : C.red, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>Marge nette MayRelay</span>
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>
+                après coût SMS (−{COUT_SMS.toFixed(2)} €)
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: margeNette >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
+                {margeNette >= 0 ? '+' : ''}{(margeNette * nbColis).toFixed(0)} €
+              </div>
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>par mois</div>
+            </div>
+          </div>
+          {urgPct > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 11, color: C.amber, fontFamily: 'sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+                Si tous les colis en urgence (+{urgPct}%)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {lignes.map(l => {
+                  const mensuelUrg = (prixUrgent * l.pct / 100) * nbColis;
+                  return (
+                    <div key={l.label} style={{ flex: '1 1 140px', background: '#FFFBEB', borderRadius: 8, border: `1px solid ${C.amber}33`, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 11, color: C.dark, fontFamily: 'sans-serif', marginBottom: 4 }}>{l.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: C.amber, fontFamily: 'Georgia, serif' }}>
+                        {mensuelUrg.toFixed(0)} €
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ flex: '1 1 140px', background: '#FFFBEB', borderRadius: 8, border: `1px solid ${C.amber}33`, padding: '10px 14px' }}>
+                  <div style={{ fontSize: 11, color: C.dark, fontFamily: 'sans-serif', marginBottom: 4 }}>Marge nette urgence</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: margeNetteUrg >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif' }}>
+                    {margeNetteUrg >= 0 ? '+' : ''}{(margeNetteUrg * nbColis).toFixed(0)} €
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </Section>
   );
 }
