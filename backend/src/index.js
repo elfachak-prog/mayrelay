@@ -55,14 +55,10 @@ if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
 
 const db = require('./config/database');
 
-const TEMPLATES_DEFAUT = [
-  { cle: 'depot_destinataire',     label: 'Dépôt — destinataire',      variables: 'nom_destinataire, type, partenaire_nom, zone, reference, horaires',   contenu: 'Bonjour {nom_destinataire}, votre {type} MayRelay est arrive au point relais {partenaire_nom} ({zone}). Reference: {reference}. Suivez: mayrelay.vercel.app/suivi . Horaires: {horaires}' },
-  { cle: 'depot_expediteur',       label: 'Dépôt — expéditeur',        variables: 'type, nom_destinataire, reference',                                     contenu: 'MayRelay: Votre envoi de {type} pour {nom_destinataire} a ete enregistre. Reference: {reference}. Le destinataire a ete notifie. Suivez: mayrelay.vercel.app/suivi' },
-  { cle: 'recuperation',           label: 'Récupération colis',         variables: 'reference',                                                             contenu: 'MayRelay : Votre colis {reference} a ete recupere. Merci de votre confiance.' },
-  { cle: 'rappel_j2_destinataire', label: 'Rappel J+2 — destinataire', variables: 'type, reference',                                                       contenu: 'Rappel MayRelay: Votre {type} {reference} est disponible depuis 2 jours. Il sera garde encore 5 jours. Suivez: mayrelay.vercel.app/suivi' },
-  { cle: 'rappel_j2_expediteur',   label: 'Rappel J+2 — expéditeur',   variables: 'reference, nom_destinataire',                                           contenu: 'MayRelay: Votre envoi {reference} pour {nom_destinataire} n a pas ete recupere apres 2 jours. Le destinataire a ete notifie.' },
-  { cle: 'retour_expediteur',      label: 'Retour J+7 — expéditeur',   variables: 'reference',                                                             contenu: 'MayRelay: Votre envoi {reference} n a pas ete recupere apres 7 jours. Il a ete retourne a votre point relais.' },
-  { cle: 'retour_destinataire',    label: 'Retour J+7 — destinataire', variables: 'type, reference',                                                       contenu: 'MayRelay: Votre {type} {reference} n a pas ete recupere et a ete retourne a l expediteur.' },
+const TEMPLATES_SMS = [
+  { cle: 'depot_destinataire',     label: 'SMS Dépôt — destinataire',    variables: 'nom_destinataire, type, partenaire_nom, zone, reference, horaires', contenu: 'Bonjour {nom_destinataire}, votre {type} MayRelay est arrive au point relais {partenaire_nom} ({zone}). Reference: {reference}. Suivez: mayrelay.vercel.app/suivi . Horaires: {horaires}' },
+  { cle: 'rappel_j5_destinataire', label: 'SMS Rappel J+5 — destinataire', variables: 'type, reference',                                                contenu: 'Rappel MayRelay: Votre {type} {reference} est disponible au point relais. Il sera retourne dans 2 jours. Suivez: mayrelay.vercel.app/suivi' },
+  { cle: 'retour_expediteur',      label: 'SMS Retour J+7 — expéditeur',  variables: 'reference',                                                        contenu: 'MayRelay: Votre envoi {reference} n a pas ete recupere apres 7 jours. Il a ete retourne a votre point relais.' },
 ];
 
 app.listen(PORT, async () => {
@@ -118,17 +114,25 @@ app.listen(PORT, async () => {
       variables TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
     )`);
-    for (const t of TEMPLATES_DEFAUT) {
+    // Supprimer les anciens templates SMS devenus inutiles (remplacés par email)
+    await db.query(`DELETE FROM sms_templates WHERE cle IN ('depot_expediteur','recuperation','rappel_j2_destinataire','rappel_j2_expediteur','retour_destinataire')`);
+    for (const t of TEMPLATES_SMS) {
       await db.query(
         `INSERT INTO sms_templates (cle, label, contenu, variables)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT (cle) DO NOTHING`,
+         ON CONFLICT (cle) DO UPDATE SET label = $2, variables = $4`,
         [t.cle, t.label, t.contenu, t.variables]
       );
     }
     console.log('Migration SMS tables OK');
   } catch (err) {
     console.error('Migration SMS:', err.message);
+  }
+  try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS date_notification_j5 TIMESTAMP');
+    console.log('Migration colis.date_notification_j5 OK');
+  } catch (err) {
+    console.error('Migration colis.date_notification_j5:', err.message);
   }
   try {
     await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS archive BOOLEAN DEFAULT FALSE');

@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const QRCode = require('qrcode');
 const { envoyerSMS } = require('../config/sms');
+const { envoyerEmail } = require('../config/email');
 
 const genererReference = () => {
   const annee = new Date().getFullYear();
@@ -55,9 +56,10 @@ const creerColis = async (req, res) => {
       await envoyerSMS(telephone2_destinataire, msgDest);
     }
 
-    if (telephone_expediteur) {
-      const msgExp = "MayRelay: Votre envoi de " + type.toLowerCase() + " pour " + nom_destinataire + " a ete enregistre. Reference: " + reference + ". Le destinataire a ete notifie. Suivez: mayrelay.vercel.app/suivi";
-      await envoyerSMS(telephone_expediteur, msgExp);
+    if (email_expediteur) {
+      const sujet = 'MayRelay – Votre envoi ' + reference + ' a été enregistré';
+      const corps = 'Bonjour,\n\nVotre envoi de ' + type.toLowerCase() + ' pour ' + nom_destinataire + ' a été enregistré avec succès.\n\nRéférence : ' + reference + '\nLe destinataire a été notifié par SMS.\n\nSuivi : mayrelay.vercel.app/suivi\n\nL\'équipe MayRelay';
+      await envoyerEmail(email_expediteur, sujet, corps).catch(() => {});
     }
 
     await db.query(
