@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import API, { getMissionsDisponibles, accepterMission, getMesMissions, confirmerLivraison, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
+import API, { getMissionsDisponibles, accepterMission, getMesMissions, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import CarteMissions from '../components/CarteMissions';
@@ -84,10 +84,7 @@ export default function Livreur({ user, onLogout, logo }) {
   const [showQR, setShowQR] = useState(false);
 
 
-  const [rated, setRated] = useState(false);
-  const [stars, setStars] = useState(0);
   const [qrErreur, setQrErreur] = useState('');
-  const [livraisonErreur, setLivraisonErreur] = useState('');
   const [historique, setHistorique] = useState([]);
   const [showTestQR, setShowTestQR] = useState(false);
   const [testResult, setTestResult] = useState('');
@@ -196,20 +193,28 @@ export default function Livreur({ user, onLogout, logo }) {
     }
     setQrErreur('');
     if (etape === 'aller_chercher') setEtape('en_route');
-    else if (etape === 'deposer') setEtape('termine');
   };
 
-  const handleEnvoyerEvaluation = async () => {
+  const verifierConfirmation = async () => {
+    if (!missionEnCours) return;
     try {
-      setLivraisonErreur('');
-      await confirmerLivraison(missionEnCours.id, { note_partenaire: stars });
-      await chargerHistorique();
-      setRated(true);
+      const res = await getMesMissions();
+      const m = res.data.missions.find(x => x.id === missionEnCours.id);
+      if (m && m.statut === 'termine') {
+        await chargerHistorique();
+        setEtape('termine');
+      }
     } catch (err) {
       console.error(err);
-      setLivraisonErreur('Erreur lors de la confirmation — réessaie.');
     }
   };
+
+  useEffect(() => {
+    if (etape !== 'deposer' || !missionEnCours) return;
+    const poll = setInterval(verifierConfirmation, 30000);
+    return () => clearInterval(poll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etape, missionEnCours]);
 
   const destinationCarte = useMemo(() => missionEnCours ? {
     lat: parseFloat(missionEnCours.lat_destination),
@@ -344,7 +349,7 @@ export default function Livreur({ user, onLogout, logo }) {
                   {[
                     { key: 'aller_chercher', label: 'Scanner le colis au depart', icon: '📱' },
                     { key: 'en_route', label: 'En route vers destination', icon: '🛵' },
-                    { key: 'deposer', label: 'Scanner a la livraison', icon: '📍' },
+                    { key: 'deposer', label: 'En attente de confirmation du point relais', icon: '⏳' },
                     { key: 'termine', label: 'Mission terminee', icon: '✅' },
                   ].map((e, i, arr) => {
                     const idx = arr.findIndex(x => x.key === etape);
@@ -382,37 +387,25 @@ export default function Livreur({ user, onLogout, logo }) {
                 )}
                 {etape === 'en_route' && (
                   <button onClick={() => setEtape('deposer')} style={{ width: '100%', padding: 14, background: C.accent, border: 'none', borderRadius: 12, color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
-                    🛵 Je suis arrive — Scanner a la livraison
+                    🛵 Je suis arrive au point relais
                   </button>
                 )}
                 {etape === 'deposer' && (
-                  <button onClick={lancerScan} style={{ width: '100%', padding: 14, background: C.green, border: 'none', borderRadius: 12, color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
-                    📷 Scanner et confirmer la livraison
-                  </button>
+                  <div style={{ background: C.card, borderRadius: 14, padding: 20, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                    <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 6 }}>En attente de confirmation</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>Le point relais doit confirmer la remise du colis au destinataire. Ton gain sera crédité automatiquement.</div>
+                    <button onClick={verifierConfirmation} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                      ↻ Vérifier la confirmation
+                    </button>
+                  </div>
                 )}
                 {etape === 'termine' && (
                   <div style={{ textAlign: 'center', padding: 20 }}>
                     <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: C.green, fontFamily: 'Georgia, serif', marginBottom: 8 }}>Mission accomplie</div>
                     <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif', marginBottom: 20 }}>Gain credite : <span style={{ color: C.accent, fontWeight: 700 }}>{missionEnCours.gain_livreur}€</span></div>
-                    {!rated && (
-                      <div style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}`, marginBottom: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 12 }}>Evaluez ce point relais</div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-                          {[1,2,3,4,5].map(s => (
-                            <div key={s} onClick={() => setStars(s)} style={{ fontSize: 30, cursor: 'pointer' }}>
-                              {stars >= s ? '⭐' : '☆'}
-                            </div>
-                          ))}
-                        </div>
-                        {livraisonErreur && <div style={{ fontSize: 11, color: C.red, fontFamily: 'sans-serif', marginBottom: 8, textAlign: 'center' }}>{livraisonErreur}</div>}
-                        <button onClick={handleEnvoyerEvaluation} disabled={stars === 0} style={{ width: '100%', padding: 10, background: stars === 0 ? C.border : C.accent, border: 'none', borderRadius: 10, color: stars === 0 ? C.muted : '#000', fontSize: 13, fontWeight: 700, cursor: stars === 0 ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
-                          Envoyer mon evaluation
-                        </button>
-                      </div>
-                    )}
-                    {rated && <div style={{ fontSize: 12, color: C.green, fontFamily: 'sans-serif', marginBottom: 16 }}>Evaluation envoyee — gain credite !</div>}
-                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setRated(false); setStars(0); setQrErreur(''); setLivraisonErreur(''); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setQrErreur(''); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
                       Retour aux missions
                     </button>
                   </div>

@@ -13,7 +13,7 @@ const {
 router.post('/', auth, creerColis);
 router.get('/', auth, getMesColis);
 
-// Colis à remettre : statut 'livre' dont ce partenaire est la destination
+// Colis à remettre : en transit ou déjà livrés au relais, destinés à ce partenaire
 router.get('/reception/a-remettre', auth, async (req, res) => {
   try {
     const result = await db.query(`
@@ -23,7 +23,7 @@ router.get('/reception/a-remettre', auth, async (req, res) => {
       JOIN missions m ON m.colis_id = c.id
       JOIN partenaires p ON m.partenaire_depart_id = p.id
       WHERE m.partenaire_destination_id = $1
-        AND c.statut = 'livre'
+        AND c.statut IN ('en_transit', 'livre')
       ORDER BY c.updated_at DESC
     `, [req.user.id]);
     res.json({ colis: result.rows });
@@ -55,11 +55,11 @@ router.get('/reception/scan/:reference', auth, async (req, res) => {
   }
 });
 
-// Confirmer la remise au destinataire → colis 'paye' + paiement
+// Confirmer la remise au destinataire → colis 'paye' + paiement + clôture mission + gain livreur
 router.post('/reception/remettre/:reference', auth, async (req, res) => {
   try {
     const colisRes = await db.query(`
-      SELECT c.*, m.id as mission_id, m.livreur_id
+      SELECT c.*, m.id as mission_id, m.livreur_id, m.gain_livreur
       FROM colis c
       JOIN missions m ON m.colis_id = c.id
       WHERE c.reference = $1 AND m.partenaire_destination_id = $2
@@ -93,6 +93,15 @@ router.post('/reception/remettre/:reference', auth, async (req, res) => {
         avecLivreur]);
 
     await db.query("UPDATE colis SET statut='paye', updated_at=NOW() WHERE id=$1", [colis.id]);
+
+    // Clôturer la mission et créditer le gain du livreur
+    await db.query("UPDATE missions SET statut='termine', updated_at=NOW() WHERE id=$1", [colis.mission_id]);
+    if (avecLivreur) {
+      await db.query("UPDATE livreurs SET solde = solde + $1 WHERE id=$2", [
+        parseFloat(colis.gain_livreur || 0),
+        colis.livreur_id
+      ]);
+    }
 
     // SMS confirmation au destinataire
     const msg = `MayRelay : Votre ${colis.type.toLowerCase()} ${colis.reference} a ete recupere. Merci d avoir choisi MayRelay !`;
