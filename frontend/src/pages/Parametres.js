@@ -173,19 +173,29 @@ function SimulateurMarge({ params }) {
           <div style={{ marginTop: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Colis / mois</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: C.navy, fontFamily: 'Georgia, serif' }}>{nbColis}</span>
+              <input
+                type="number"
+                min="1"
+                max="9999"
+                value={nbColis}
+                onChange={e => {
+                  const v = parseInt(e.target.value) || 1;
+                  setNbColis(Math.max(1, v));
+                }}
+                style={{ width: 72, padding: '3px 8px', border: `1.5px solid ${C.teal}`, borderRadius: 7, fontSize: 16, fontWeight: 800, color: C.navy, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none' }}
+              />
             </div>
             <input
               type="range"
               min="10"
               max="500"
               step="10"
-              value={nbColis}
+              value={Math.min(nbColis, 500)}
               onChange={e => setNbColis(parseInt(e.target.value))}
               style={{ width: '100%', accentColor: C.teal, cursor: 'pointer' }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>
-              <span>10</span><span>500</span>
+              <span>10</span><span>500+</span>
             </div>
           </div>
         </div>
