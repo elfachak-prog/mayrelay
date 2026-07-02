@@ -117,224 +117,179 @@ function TextAreaRow({ label, description, value, onSave }) {
   );
 }
 
-function SimulateurMarge({ params }) {
-  const [prix, setPrix] = useState('');
-  const [nbColis, setNbColis] = useState(100);
+function LigneSimulation({ label, prix, color, volume, onVolumeChange, expPct, recPct, livrPct, relayPct, COUT_SMS }) {
+  const v = volume;
+  const p = prix;
+  const revExp   = p * expPct   / 100;
+  const revRec   = p * recPct   / 100;
+  const revLivr  = p * livrPct  / 100;
+  const revRelay = p * relayPct / 100;
+  const margeUnit = revRelay - COUT_SMS;
 
-  const p = parseFloat(prix) || 0;
+  const partenaireMensuel = (revExp + revRec) * v;
+  const livreurMensuel    = revLivr * v;
+  const margeMensuelle    = margeUnit * v;
+  const hasData = p > 0 && v > 0;
+
+  return (
+    <div style={{ background: '#F8FAFC', borderRadius: 12, border: `1.5px solid ${color}33`, padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: color, fontFamily: 'Georgia, serif' }}>
+          {p > 0 ? p.toFixed(2) + ' €' : <span style={{ color: C.muted }}>prix non défini</span>}
+        </span>
+        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>/ envoi</span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', minWidth: 110, flexShrink: 0 }}>Volume mensuel</span>
+        <input
+          type="range"
+          min="0"
+          max="500"
+          step="10"
+          value={Math.min(v, 500)}
+          onChange={e => onVolumeChange(parseInt(e.target.value))}
+          style={{ flex: 1, accentColor: color, cursor: 'pointer', minWidth: 60 }}
+        />
+        <input
+          type="number"
+          min="0"
+          max="9999"
+          value={v}
+          onChange={e => onVolumeChange(Math.max(0, parseInt(e.target.value) || 0))}
+          style={{ width: 68, padding: '3px 8px', border: `1.5px solid ${color}`, borderRadius: 7, fontSize: 15, fontWeight: 800, color: C.navy, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none' }}
+        />
+        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', flexShrink: 0 }}>/ mois</span>
+      </div>
+
+      {hasData && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          <div style={{ flex: '1 1 120px', background: '#EEF2FF', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: '#6366F1', fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Partenaires</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#6366F1', fontFamily: 'Georgia, serif' }}>{partenaireMensuel.toFixed(0)} €</div>
+          </div>
+          <div style={{ flex: '1 1 120px', background: '#FFFBEB', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: C.amber, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Livreur</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.amber, fontFamily: 'Georgia, serif' }}>{livreurMensuel.toFixed(0)} €</div>
+          </div>
+          <div style={{ flex: '1 1 120px', background: margeMensuelle >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: margeMensuelle >= 0 ? C.green : C.red, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Marge nette MayRelay</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: margeMensuelle >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif' }}>
+              {margeMensuelle >= 0 ? '+' : ''}{margeMensuelle.toFixed(0)} €
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimulateurMarge({ params }) {
   const expPct   = parseFloat(params.commission_partenaire_exp) || 0;
   const recPct   = parseFloat(params.commission_partenaire_rec) || 0;
   const livrPct  = parseFloat(params.commission_livreur)        || 0;
   const relayPct = parseFloat(params.commission_mayrelay)       || 0;
-  const urgPct   = parseFloat(params.majoration_urgence)        || 0;
-
   const COUT_SMS = 0.49;
 
-  const partExp   = p * expPct   / 100;
-  const partRec   = p * recPct   / 100;
-  const partLivr  = p * livrPct  / 100;
-  const partRelay = p * relayPct / 100;
-  const margeNette = partRelay - COUT_SMS;
+  const [volumes, setVolumes] = useState({ courrier: 50, standard: 100, lourd: 20 });
 
-  const prixUrgent     = p * (1 + urgPct / 100);
-  const partRelayUrgent = prixUrgent * relayPct / 100;
-  const margeNetteUrg  = partRelayUrgent - COUT_SMS;
+  const types = [
+    { key: 'courrier',  label: 'Courriers',        prix: parseFloat(params.prix_courrier)    || 0, color: '#6366F1' },
+    { key: 'standard',  label: 'Colis standard',   prix: parseFloat(params.prix_colis)       || 0, color: '#F59E0B' },
+    { key: 'lourd',     label: 'Colis volumineux',  prix: parseFloat(params.prix_colis_lourd) || 0, color: '#EF4444' },
+  ];
 
-  const lignes = [
-    { label: 'Partenaire expéditeur', pct: expPct,   montant: partExp,   color: '#6366F1' },
-    { label: 'Partenaire récepteur',  pct: recPct,   montant: partRec,   color: '#8B5CF6' },
-    { label: 'Livreur',               pct: livrPct,  montant: partLivr,  color: '#F59E0B' },
-    { label: 'MayRelay',              pct: relayPct, montant: partRelay, color: C.teal    },
+  const calcTotaux = () => types.reduce((acc, t) => {
+    const v = volumes[t.key];
+    const p = t.prix;
+    return {
+      partExp:    acc.partExp    + p * expPct   / 100 * v,
+      partRec:    acc.partRec    + p * recPct   / 100 * v,
+      partLivr:   acc.partLivr   + p * livrPct  / 100 * v,
+      partRelay:  acc.partRelay  + p * relayPct / 100 * v,
+      coutSMS:    acc.coutSMS    + COUT_SMS * v,
+      margeNette: acc.margeNette + (p * relayPct / 100 - COUT_SMS) * v,
+      totalItems: acc.totalItems + v,
+    };
+  }, { partExp: 0, partRec: 0, partLivr: 0, partRelay: 0, coutSMS: 0, margeNette: 0, totalItems: 0 });
+
+  const tot = calcTotaux();
+  const hasAny = tot.totalItems > 0 && types.some(t => t.prix > 0);
+
+  const totPartenaire = tot.partExp + tot.partRec;
+
+  const summaryCards = [
+    { label: 'Partenaire expéditeur', montant: tot.partExp,    color: '#6366F1', pct: expPct   },
+    { label: 'Partenaire récepteur',  montant: tot.partRec,    color: '#8B5CF6', pct: recPct   },
+    { label: 'Livreurs',              montant: tot.partLivr,   color: C.amber,   pct: livrPct  },
+    { label: 'MayRelay (brut)',        montant: tot.partRelay,  color: C.teal,    pct: relayPct },
   ];
 
   return (
     <Section title="Simulateur de marge" icon="🧮">
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        {/* Entrée prix + curseur colis */}
-        <div style={{ flex: '0 0 240px' }}>
-          <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>
-            Prix facturé au client (€)
-          </div>
-          <input
-            type="number"
-            min="0"
-            step="0.5"
-            value={prix}
-            onChange={e => setPrix(e.target.value)}
-            placeholder="ex : 5.00"
-            style={{ width: '100%', padding: '10px 14px', border: `2px solid ${C.teal}`, borderRadius: 10, fontSize: 20, fontWeight: 700, color: C.navy, outline: 'none', boxSizing: 'border-box', fontFamily: 'Georgia, serif' }}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {types.map(t => (
+          <LigneSimulation
+            key={t.key}
+            label={t.label}
+            prix={t.prix}
+            color={t.color}
+            volume={volumes[t.key]}
+            onVolumeChange={v => setVolumes(prev => ({ ...prev, [t.key]: v }))}
+            expPct={expPct}
+            recPct={recPct}
+            livrPct={livrPct}
+            relayPct={relayPct}
+            COUT_SMS={COUT_SMS}
           />
-          {urgPct > 0 && p > 0 && (
-            <div style={{ marginTop: 10, fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>
-              Avec majoration urgence ({urgPct}%) :{' '}
-              <strong style={{ color: C.navy }}>{prixUrgent.toFixed(2)} €</strong>
-            </div>
-          )}
-          <div style={{ marginTop: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>Colis / mois</span>
-              <input
-                type="number"
-                min="1"
-                max="9999"
-                value={nbColis}
-                onChange={e => {
-                  const v = parseInt(e.target.value) || 1;
-                  setNbColis(Math.max(1, v));
-                }}
-                style={{ width: 72, padding: '3px 8px', border: `1.5px solid ${C.teal}`, borderRadius: 7, fontSize: 16, fontWeight: 800, color: C.navy, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="500"
-              step="10"
-              value={Math.min(nbColis, 500)}
-              onChange={e => setNbColis(parseInt(e.target.value))}
-              style={{ width: '100%', accentColor: C.teal, cursor: 'pointer' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>
-              <span>10</span><span>500+</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Répartition standard */}
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 10 }}>
-            Répartition — tarif normal
-          </div>
-          {lignes.map(l => (
-            <div key={l.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
-                <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>({l.pct}%)</span>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: l.color, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-                {p > 0 ? l.montant.toFixed(2) + ' €' : '—'}
-              </span>
-            </div>
-          ))}
-          {/* Coût SMS */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.red, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>Coût SMS (fixe)</span>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-              − {COUT_SMS.toFixed(2)} €
-            </span>
-          </div>
-          {/* Marge nette */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 4px' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>Marge nette MayRelay</span>
-            <span style={{ fontSize: 16, fontWeight: 800, color: p > 0 ? (margeNette >= 0 ? C.green : C.red) : C.muted, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-              {p > 0 ? (margeNette >= 0 ? '+' : '') + margeNette.toFixed(2) + ' €' : '—'}
-            </span>
-          </div>
-        </div>
-
-        {/* Colonne urgence */}
-        {urgPct > 0 && (
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 11, color: C.amber, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 10 }}>
-              Répartition — urgence (+{urgPct}%)
-            </div>
-            {lignes.map(l => {
-              const montantUrg = prixUrgent * l.pct / 100;
-              return (
-                <div key={l.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: l.color, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-                    {p > 0 ? montantUrg.toFixed(2) + ' €' : '—'}
-                  </span>
-                </div>
-              );
-            })}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 13, color: C.dark, fontFamily: 'sans-serif' }}>Coût SMS (fixe)</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-                − {COUT_SMS.toFixed(2)} €
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 4px' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>Marge nette urgence</span>
-              <span style={{ fontSize: 16, fontWeight: 800, color: p > 0 ? (margeNetteUrg >= 0 ? C.green : C.red) : C.muted, fontFamily: 'Georgia, serif', minWidth: 64, textAlign: 'right' }}>
-                {p > 0 ? (margeNetteUrg >= 0 ? '+' : '') + margeNetteUrg.toFixed(2) + ' €' : '—'}
-              </span>
-            </div>
-          </div>
-        )}
+        ))}
       </div>
 
-      {/* Revenus mensuels estimés */}
-      {p > 0 && (
+      {hasAny && (
         <div style={{ marginTop: 24, background: '#F0FDF8', border: `1.5px solid ${C.teal}`, borderRadius: 14, padding: '20px 24px' }}>
-          <div style={{ fontSize: 12, color: C.teal, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 14 }}>
-            Revenus mensuels estimés — {nbColis} colis/mois
+          <div style={{ fontSize: 12, color: C.teal, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 4 }}>
+            Revenus mensuels combinés
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {lignes.map(l => {
-              const mensuel = l.montant * nbColis;
-              return (
-                <div key={l.label} style={{ flex: '1 1 160px', background: C.white, borderRadius: 10, border: `1.5px solid ${l.color}22`, padding: '14px 18px', boxShadow: `0 2px 8px ${l.color}18` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>{l.label}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>
-                    {l.pct}% × {l.montant.toFixed(2)} €/colis
-                  </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: l.color, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
-                    {mensuel.toFixed(0)} €
-                  </div>
-                  <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>par mois</div>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>
+            {types.map(t => `${volumes[t.key]} ${t.label.toLowerCase()}`).join(' · ')} — {tot.totalItems} envois total
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            {summaryCards.map(c => (
+              <div key={c.label} style={{ flex: '1 1 150px', background: C.white, borderRadius: 10, border: `1.5px solid ${c.color}22`, padding: '14px 18px', boxShadow: `0 2px 8px ${c.color}10` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>{c.label}</span>
                 </div>
-              );
-            })}
-            {/* Marge nette MayRelay */}
-            <div style={{ flex: '1 1 160px', background: margeNette >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, border: `1.5px solid ${margeNette >= 0 ? C.green : C.red}44`, padding: '14px 18px', boxShadow: `0 2px 8px ${margeNette >= 0 ? C.green : C.red}18` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: margeNette >= 0 ? C.green : C.red, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>Marge nette MayRelay</span>
+                <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>{c.pct}% du tarif</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: c.color, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
+                  {c.montant.toFixed(0)} €
+                </div>
+                <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>/ mois</div>
               </div>
-              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>
-                après coût SMS (−{COUT_SMS.toFixed(2)} €)
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingTop: 14, borderTop: `1px solid ${C.teal}33` }}>
+            <div style={{ flex: '1 1 200px', background: C.white, borderRadius: 10, border: `1.5px solid ${C.muted}22`, padding: '14px 18px' }}>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>Coût SMS total</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.red, fontFamily: 'Georgia, serif' }}>−{tot.coutSMS.toFixed(0)} €</div>
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>{COUT_SMS.toFixed(2)} € × {tot.totalItems} envois</div>
+            </div>
+            <div style={{ flex: '1 1 200px', background: tot.margeNette >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, border: `1.5px solid ${tot.margeNette >= 0 ? C.green : C.red}44`, padding: '14px 18px', boxShadow: `0 2px 8px ${tot.margeNette >= 0 ? C.green : C.red}12` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <div style={{ width: 9, height: 9, borderRadius: '50%', background: tot.margeNette >= 0 ? C.green : C.red }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.dark, fontFamily: 'sans-serif' }}>Marge nette totale MayRelay</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: margeNette >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
-                {margeNette >= 0 ? '+' : ''}{(margeNette * nbColis).toFixed(0)} €
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginBottom: 6 }}>après déduction des coûts SMS</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: tot.margeNette >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
+                {tot.margeNette >= 0 ? '+' : ''}{tot.margeNette.toFixed(0)} €
               </div>
-              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>par mois</div>
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>/ mois</div>
             </div>
           </div>
-          {urgPct > 0 && (
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 11, color: C.amber, fontFamily: 'sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-                Si tous les colis en urgence (+{urgPct}%)
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {lignes.map(l => {
-                  const mensuelUrg = (prixUrgent * l.pct / 100) * nbColis;
-                  return (
-                    <div key={l.label} style={{ flex: '1 1 140px', background: '#FFFBEB', borderRadius: 8, border: `1px solid ${C.amber}33`, padding: '10px 14px' }}>
-                      <div style={{ fontSize: 11, color: C.dark, fontFamily: 'sans-serif', marginBottom: 4 }}>{l.label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: C.amber, fontFamily: 'Georgia, serif' }}>
-                        {mensuelUrg.toFixed(0)} €
-                      </div>
-                    </div>
-                  );
-                })}
-                <div style={{ flex: '1 1 140px', background: '#FFFBEB', borderRadius: 8, border: `1px solid ${C.amber}33`, padding: '10px 14px' }}>
-                  <div style={{ fontSize: 11, color: C.dark, fontFamily: 'sans-serif', marginBottom: 4 }}>Marge nette urgence</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: margeNetteUrg >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif' }}>
-                    {margeNetteUrg >= 0 ? '+' : ''}{(margeNetteUrg * nbColis).toFixed(0)} €
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </Section>
