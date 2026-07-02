@@ -218,8 +218,6 @@ function SimulateurMarge({ params }) {
   const tot = calcTotaux();
   const hasAny = tot.totalItems > 0 && types.some(t => t.prix > 0);
 
-  const totPartenaire = tot.partExp + tot.partRec;
-
   const summaryCards = [
     { label: 'Partenaire expéditeur', montant: tot.partExp,    color: '#6366F1', pct: expPct   },
     { label: 'Partenaire récepteur',  montant: tot.partRec,    color: '#8B5CF6', pct: recPct   },
