@@ -117,29 +117,47 @@ function TextAreaRow({ label, description, value, onSave }) {
   );
 }
 
-function LigneSimulation({ label, prix, color, volume, onVolumeChange, expPct, recPct, livrPct, relayPct, COUT_SMS }) {
+function LigneSimulation({ label, prixBase, prixSim, onPrixChange, color, volume, onVolumeChange, expPct, recPct, livrPct, relayPct, COUT_SMS }) {
   const v = volume;
-  const p = prix;
-  const revExp   = p * expPct   / 100;
-  const revRec   = p * recPct   / 100;
-  const revLivr  = p * livrPct  / 100;
-  const revRelay = p * relayPct / 100;
+  const p = prixSim;
+  const revExp    = p * expPct   / 100;
+  const revRec    = p * recPct   / 100;
+  const revLivr   = p * livrPct  / 100;
+  const revRelay  = p * relayPct / 100;
   const margeUnit = revRelay - COUT_SMS;
 
-  const partenaireMensuel = (revExp + revRec) * v;
-  const livreurMensuel    = revLivr * v;
-  const margeMensuelle    = margeUnit * v;
+  const expMensuel   = revExp  * v;
+  const recMensuel   = revRec  * v;
+  const livreurMensuel = revLivr * v;
+  const margeMensuelle = margeUnit * v;
   const hasData = p > 0 && v > 0;
+  const prixModifie = Math.abs(prixSim - prixBase) > 0.001;
 
   return (
     <div style={{ background: '#F8FAFC', borderRadius: 12, border: `1.5px solid ${color}33`, padding: '16px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: 'sans-serif' }}>{label}</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: color, fontFamily: 'Georgia, serif' }}>
-          {p > 0 ? p.toFixed(2) + ' €' : <span style={{ color: C.muted }}>prix non défini</span>}
-        </span>
-        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>/ envoi</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={prixSim}
+            onChange={e => onPrixChange(Math.max(0, parseFloat(e.target.value) || 0))}
+            style={{ width: 72, padding: '3px 8px', border: `1.5px solid ${color}`, borderRadius: 7, fontSize: 14, fontWeight: 800, color: color, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none', background: prixModifie ? `${color}0D` : C.white }}
+          />
+          <span style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>€ / envoi</span>
+          {prixModifie && (
+            <span
+              title="Réinitialiser au tarif réel"
+              onClick={() => onPrixChange(prixBase)}
+              style={{ fontSize: 10, color: C.amber, fontFamily: 'sans-serif', cursor: 'pointer', textDecoration: 'underline', fontStyle: 'italic' }}
+            >
+              (base : {prixBase.toFixed(2)} €)
+            </span>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -166,17 +184,21 @@ function LigneSimulation({ label, prix, color, volume, onVolumeChange, expPct, r
 
       {hasData && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          <div style={{ flex: '1 1 120px', background: '#EEF2FF', borderRadius: 8, padding: '8px 12px' }}>
-            <div style={{ fontSize: 10, color: '#6366F1', fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Partenaires</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#6366F1', fontFamily: 'Georgia, serif' }}>{partenaireMensuel.toFixed(0)} €</div>
+          <div style={{ flex: '1 1 100px', background: '#EEF2FF', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: '#6366F1', fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Part. expéditeur</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#6366F1', fontFamily: 'Georgia, serif' }}>{expMensuel.toFixed(0)} €</div>
           </div>
-          <div style={{ flex: '1 1 120px', background: '#FFFBEB', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ flex: '1 1 100px', background: '#F5F3FF', borderRadius: 8, padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: '#8B5CF6', fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Part. récepteur</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#8B5CF6', fontFamily: 'Georgia, serif' }}>{recMensuel.toFixed(0)} €</div>
+          </div>
+          <div style={{ flex: '1 1 100px', background: '#FFFBEB', borderRadius: 8, padding: '8px 12px' }}>
             <div style={{ fontSize: 10, color: C.amber, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Livreur</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.amber, fontFamily: 'Georgia, serif' }}>{livreurMensuel.toFixed(0)} €</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.amber, fontFamily: 'Georgia, serif' }}>{livreurMensuel.toFixed(0)} €</div>
           </div>
-          <div style={{ flex: '1 1 120px', background: margeMensuelle >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ flex: '1 1 100px', background: margeMensuelle >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>
             <div style={{ fontSize: 10, color: margeMensuelle >= 0 ? C.green : C.red, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 3 }}>Marge nette MayRelay</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: margeMensuelle >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: margeMensuelle >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif' }}>
               {margeMensuelle >= 0 ? '+' : ''}{margeMensuelle.toFixed(0)} €
             </div>
           </div>
@@ -193,17 +215,24 @@ function SimulateurMarge({ params }) {
   const relayPct = parseFloat(params.commission_mayrelay)       || 0;
   const COUT_SMS = 0.49;
 
-  const [volumes, setVolumes] = useState({ courrier: 50, standard: 100, lourd: 20 });
+  const prixBase = {
+    courrier: parseFloat(params.prix_courrier)    || 0,
+    standard: parseFloat(params.prix_colis)       || 0,
+    lourd:    parseFloat(params.prix_colis_lourd) || 0,
+  };
+
+  const [volumes,  setVolumes]  = useState({ courrier: 50, standard: 100, lourd: 20 });
+  const [prixSim,  setPrixSim]  = useState({ ...prixBase });
 
   const types = [
-    { key: 'courrier',  label: 'Courriers',        prix: parseFloat(params.prix_courrier)    || 0, color: '#6366F1' },
-    { key: 'standard',  label: 'Colis standard',   prix: parseFloat(params.prix_colis)       || 0, color: '#F59E0B' },
-    { key: 'lourd',     label: 'Colis volumineux',  prix: parseFloat(params.prix_colis_lourd) || 0, color: '#EF4444' },
+    { key: 'courrier', label: 'Courriers',       color: '#6366F1' },
+    { key: 'standard', label: 'Colis standard',  color: '#F59E0B' },
+    { key: 'lourd',    label: 'Colis volumineux', color: '#EF4444' },
   ];
 
   const calcTotaux = () => types.reduce((acc, t) => {
     const v = volumes[t.key];
-    const p = t.prix;
+    const p = prixSim[t.key];
     return {
       partExp:    acc.partExp    + p * expPct   / 100 * v,
       partRec:    acc.partRec    + p * recPct   / 100 * v,
@@ -216,7 +245,7 @@ function SimulateurMarge({ params }) {
   }, { partExp: 0, partRec: 0, partLivr: 0, partRelay: 0, coutSMS: 0, margeNette: 0, totalItems: 0 });
 
   const tot = calcTotaux();
-  const hasAny = tot.totalItems > 0 && types.some(t => t.prix > 0);
+  const hasAny = tot.totalItems > 0 && types.some(t => prixSim[t.key] > 0);
 
   const summaryCards = [
     { label: 'Partenaire expéditeur', montant: tot.partExp,    color: '#6366F1', pct: expPct   },
@@ -232,7 +261,9 @@ function SimulateurMarge({ params }) {
           <LigneSimulation
             key={t.key}
             label={t.label}
-            prix={t.prix}
+            prixBase={prixBase[t.key]}
+            prixSim={prixSim[t.key]}
+            onPrixChange={p => setPrixSim(prev => ({ ...prev, [t.key]: p }))}
             color={t.color}
             volume={volumes[t.key]}
             onVolumeChange={v => setVolumes(prev => ({ ...prev, [t.key]: v }))}
@@ -251,7 +282,7 @@ function SimulateurMarge({ params }) {
             Revenus mensuels combinés
           </div>
           <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>
-            {types.map(t => `${volumes[t.key]} ${t.label.toLowerCase()}`).join(' · ')} — {tot.totalItems} envois total
+            {types.map(t => `${volumes[t.key]} ${t.label.toLowerCase()} × ${prixSim[t.key].toFixed(2)} €`).join(' · ')} — {tot.totalItems} envois total
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
