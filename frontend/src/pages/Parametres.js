@@ -221,8 +221,11 @@ function SimulateurMarge({ params }) {
     lourd:    parseFloat(params.prix_colis_lourd) || 0,
   };
 
-  const [volumes,  setVolumes]  = useState({ courrier: 50, standard: 100, lourd: 20 });
-  const [prixSim,  setPrixSim]  = useState({ ...prixBase });
+  const [volumes,     setVolumes]     = useState({ courrier: 50, standard: 100, lourd: 20 });
+  const [prixSim,     setPrixSim]     = useState({ ...prixBase });
+  const [salaireGest, setSalaireGest] = useState(0);
+  const [chargesSupp, setChargesSupp] = useState([]);
+  const nextChargeId = useRef(1);
 
   const types = [
     { key: 'courrier', label: 'Courriers',       color: '#6366F1' },
@@ -301,23 +304,103 @@ function SimulateurMarge({ params }) {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingTop: 14, borderTop: `1px solid ${C.teal}33` }}>
-            <div style={{ flex: '1 1 200px', background: C.white, borderRadius: 10, border: `1.5px solid ${C.muted}22`, padding: '14px 18px' }}>
-              <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 4 }}>Coût SMS total</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: C.red, fontFamily: 'Georgia, serif' }}>−{tot.coutSMS.toFixed(0)} €</div>
-              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>{COUT_SMS.toFixed(2)} € × {tot.totalItems} envois</div>
+          <div style={{ paddingTop: 14, borderTop: `1px solid ${C.teal}33` }}>
+            {/* Déductions */}
+            <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'sans-serif', fontWeight: 600, marginBottom: 10 }}>
+              Déductions
             </div>
-            <div style={{ flex: '1 1 200px', background: tot.margeNette >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, border: `1.5px solid ${tot.margeNette >= 0 ? C.green : C.red}44`, padding: '14px 18px', boxShadow: `0 2px 8px ${tot.margeNette >= 0 ? C.green : C.red}12` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <div style={{ width: 9, height: 9, borderRadius: '50%', background: tot.margeNette >= 0 ? C.green : C.red }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.dark, fontFamily: 'sans-serif' }}>Marge nette totale MayRelay</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+
+              {/* Coût SMS */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.white, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.border}` }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>Coût SMS</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif' }}>{COUT_SMS.toFixed(2)} € × {tot.totalItems} envois</div>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: C.red, fontFamily: 'Georgia, serif' }}>−{tot.coutSMS.toFixed(0)} €</div>
               </div>
-              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginBottom: 6 }}>après déduction des coûts SMS</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: tot.margeNette >= 0 ? C.green : C.red, fontFamily: 'Georgia, serif', letterSpacing: '-0.5px' }}>
-                {tot.margeNette >= 0 ? '+' : ''}{tot.margeNette.toFixed(0)} €
+
+              {/* Salaire gestionnaire */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.white, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif' }}>Salaire gestionnaire</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif' }}>−</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={salaireGest}
+                    onChange={e => setSalaireGest(Math.max(0, parseFloat(e.target.value) || 0))}
+                    style={{ width: 90, padding: '3px 8px', border: `1.5px solid ${C.border}`, borderRadius: 7, fontSize: 15, fontWeight: 800, color: C.dark, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none' }}
+                  />
+                  <span style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>€ / mois</span>
+                </div>
               </div>
-              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>/ mois</div>
+
+              {/* Charges supplémentaires */}
+              {chargesSupp.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.white, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.border}` }}>
+                  <input
+                    type="text"
+                    value={c.nom}
+                    onChange={e => setChargesSupp(prev => prev.map(x => x.id === c.id ? { ...x, nom: e.target.value } : x))}
+                    placeholder="Nom de la charge"
+                    style={{ flex: 1, padding: '3px 8px', border: `1.5px solid ${C.border}`, borderRadius: 7, fontSize: 12, fontWeight: 600, color: C.dark, fontFamily: 'sans-serif', outline: 'none', minWidth: 80 }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.red, fontFamily: 'Georgia, serif' }}>−</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={c.montant}
+                      onChange={e => setChargesSupp(prev => prev.map(x => x.id === c.id ? { ...x, montant: Math.max(0, parseFloat(e.target.value) || 0) } : x))}
+                      style={{ width: 90, padding: '3px 8px', border: `1.5px solid ${C.border}`, borderRadius: 7, fontSize: 15, fontWeight: 800, color: C.dark, textAlign: 'center', fontFamily: 'Georgia, serif', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif' }}>€ / mois</span>
+                  </div>
+                  <button
+                    onClick={() => setChargesSupp(prev => prev.filter(x => x.id !== c.id))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 16, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                    title="Supprimer"
+                  >×</button>
+                </div>
+              ))}
+
+              {/* Bouton ajouter charge */}
+              <button
+                onClick={() => {
+                  setChargesSupp(prev => [...prev, { id: nextChargeId.current++, nom: '', montant: 0 }]);
+                }}
+                style={{ alignSelf: 'flex-start', background: 'none', border: `1.5px dashed ${C.teal}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, color: C.teal, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                + Ajouter une charge
+              </button>
             </div>
+
+            {/* Marge nette après charges */}
+            {(() => {
+              const totalCharges = salaireGest + chargesSupp.reduce((s, c) => s + c.montant, 0);
+              const margeFinale  = tot.margeNette - totalCharges;
+              const positif      = margeFinale >= 0;
+              return (
+                <div style={{ background: positif ? '#F0FDF4' : '#FEF2F2', borderRadius: 12, border: `2px solid ${positif ? C.green : C.red}55`, padding: '18px 22px', boxShadow: `0 3px 12px ${positif ? C.green : C.red}18` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: positif ? C.green : C.red }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.dark, fontFamily: 'sans-serif' }}>Marge nette après charges</span>
+                  </div>
+                  {totalCharges > 0 && (
+                    <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginBottom: 8 }}>
+                      {tot.margeNette.toFixed(0)} € (avant charges) − {totalCharges.toFixed(0)} € (charges fixes)
+                    </div>
+                  )}
+                  <div style={{ fontSize: 32, fontWeight: 800, color: positif ? C.green : C.red, fontFamily: 'Georgia, serif', letterSpacing: '-1px' }}>
+                    {positif ? '+' : ''}{margeFinale.toFixed(0)} €
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, fontFamily: 'sans-serif', marginTop: 4 }}>/ mois</div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
