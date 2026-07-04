@@ -322,6 +322,86 @@ router.get('/carte', async (req, res) => {
   }
 });
 
+router.get('/finance/export', async (req, res) => {
+  const { periode = 'tout' } = req.query;
+
+  let filtre = '';
+  if (periode === 'mois') {
+    filtre = "AND p.created_at >= date_trunc('month', NOW())";
+  } else if (periode === 'trimestre') {
+    filtre = "AND p.created_at >= date_trunc('quarter', NOW())";
+  } else if (periode === 'annee') {
+    filtre = "AND p.created_at >= date_trunc('year', NOW())";
+  }
+
+  try {
+    const [transactions, resumeMensuel, parPartenaire] = await Promise.all([
+      db.query(`
+        SELECT
+          c.reference,
+          p.created_at AS date,
+          pat.nom AS partenaire,
+          c.nom_destinataire AS destinataire,
+          c.type,
+          p.montant_total AS prix,
+          p.part_partenaire_exp,
+          p.part_partenaire_rec,
+          p.part_livreur,
+          p.part_mayrelay,
+          p.avec_livreur,
+          p.statut
+        FROM paiements p
+        JOIN colis c ON p.colis_id = c.id
+        JOIN partenaires pat ON p.partenaire_id = pat.id
+        WHERE 1=1 ${filtre}
+        ORDER BY p.created_at DESC
+      `),
+      db.query(`
+        SELECT
+          TO_CHAR(date_trunc('month', p.created_at), 'YYYY-MM') AS mois,
+          SUM(p.montant_total)::numeric AS revenus_bruts,
+          SUM(p.part_mayrelay)::numeric AS revenus_mayrelay,
+          (SELECT COUNT(*) FROM notifications n
+            JOIN colis c2 ON n.colis_id = c2.id
+            JOIN paiements p2 ON p2.colis_id = c2.id
+            WHERE date_trunc('month', p2.created_at) = date_trunc('month', p.created_at)
+          ) * 0.07 AS couts_sms_estimes
+        FROM paiements p
+        WHERE 1=1 ${filtre}
+        GROUP BY date_trunc('month', p.created_at)
+        ORDER BY date_trunc('month', p.created_at)
+      `),
+      db.query(`
+        SELECT
+          pat.nom AS partenaire,
+          pat.zone,
+          COUNT(p.id)::int AS nb_colis,
+          SUM(p.montant_total)::numeric AS volume_total,
+          SUM(p.part_partenaire_exp + p.part_partenaire_rec)::numeric AS gains_partenaire,
+          SUM(p.part_mayrelay)::numeric AS part_mayrelay
+        FROM paiements p
+        JOIN partenaires pat ON p.partenaire_id = pat.id
+        WHERE 1=1 ${filtre}
+        GROUP BY pat.id, pat.nom, pat.zone
+        ORDER BY gains_partenaire DESC
+      `)
+    ]);
+
+    res.json({
+      transactions: transactions.rows,
+      resume_mensuel: resumeMensuel.rows.map(r => ({
+        ...r,
+        couts_sms_estimes: parseFloat(r.couts_sms_estimes || 0).toFixed(2),
+        marge_nette: (parseFloat(r.revenus_mayrelay || 0) - parseFloat(r.couts_sms_estimes || 0)).toFixed(2),
+      })),
+      par_partenaire: parPartenaire.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 router.get('/finance', async (req, res) => {
   try {
     const total = await db.query(`
