@@ -322,6 +322,39 @@ router.get('/carte', async (req, res) => {
   }
 });
 
+router.get('/partenaires/:id/casiers', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT c.*, co.reference, co.nom_destinataire
+       FROM casiers c
+       LEFT JOIN colis co ON c.colis_id = co.id
+       WHERE c.partenaire_id = $1
+       ORDER BY c.numero`,
+      [req.params.id]
+    );
+    res.json({ casiers: result.rows });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+router.put('/casiers/:id/statut', async (req, res) => {
+  try {
+    const { statut } = req.body;
+    if (!['libre', 'occupe', 'hors_service'].includes(statut)) {
+      return res.status(400).json({ message: 'Statut invalide' });
+    }
+    if (statut === 'libre') {
+      await db.query('UPDATE casiers SET statut=$1, colis_id=NULL WHERE id=$2', [statut, req.params.id]);
+    } else {
+      await db.query('UPDATE casiers SET statut=$1 WHERE id=$2', [statut, req.params.id]);
+    }
+    res.json({ message: 'Statut mis a jour' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 router.get('/finance/export', async (req, res) => {
   const { periode = 'tout' } = req.query;
 

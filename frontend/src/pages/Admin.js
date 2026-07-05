@@ -58,6 +58,9 @@ function GestionPartenaires() {
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
   const [confirmSuppr, setConfirmSuppr] = useState(null);
+  const [fichePartenaire, setFichePartenaire] = useState(null);
+  const [casiersFiche, setCasiersFiche] = useState([]);
+  const [chargementCasiers, setChargementCasiers] = useState(false);
 
   const zones = ['Mamoudzou Centre', 'Kaweni', 'Bandraboua', 'Koungou', 'Pamandzi', 'Dzaoudzi', 'Labattoir', 'Labattoir Centre', 'Boueni', 'Chiconi', 'Sada', 'Tsingoni'];
   const inputStyle = { width: '100%', padding: '10px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', boxSizing: 'border-box', fontFamily: 'sans-serif', background: '#FAFBFC', marginTop: 4 };
@@ -111,6 +114,27 @@ function GestionPartenaires() {
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible de supprimer ce partenaire');
       setConfirmSuppr(null);
+    }
+  };
+
+  const ouvrirFicheCasiers = async (p) => {
+    setFichePartenaire(p);
+    setCasiersFiche([]);
+    setChargementCasiers(true);
+    try {
+      const res = await API.get(`/admin/partenaires/${p.id}/casiers`);
+      setCasiersFiche(res.data.casiers);
+    } catch {}
+    setChargementCasiers(false);
+  };
+
+  const handleAdminCasierStatut = async (casierId, statut) => {
+    try {
+      await API.put(`/admin/casiers/${casierId}/statut`, { statut });
+      const res = await API.get(`/admin/partenaires/${fichePartenaire.id}/casiers`);
+      setCasiersFiche(res.data.casiers);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erreur');
     }
   };
 
@@ -169,6 +193,7 @@ function GestionPartenaires() {
                   <td style={{ padding: '13px 16px' }}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button onClick={() => ouvrirModifier(p)} style={{ background: '#EFF6FF', color: C.blue, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Modifier</button>
+                      <button onClick={() => ouvrirFicheCasiers(p)} style={{ background: '#EEF2FF', color: '#6366F1', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>🗃 Casiers</button>
                       {p.statut !== 'actif' && (
                         <button onClick={() => handleStatut(p.id, 'actif')} style={{ background: '#D1FAE5', color: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Activer</button>
                       )}
@@ -246,6 +271,94 @@ function GestionPartenaires() {
             <button onClick={() => handleSupprimer(confirmSuppr.id)} style={{ flex: 1, padding: 12, background: C.red, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', color: C.white }}>Supprimer définitivement</button>
           </div>
         </Modal>
+      )}
+
+      {/* Modal fiche casiers d'un partenaire */}
+      {fichePartenaire && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: C.white, borderRadius: 20, padding: 36, width: 600, maxWidth: 'calc(100vw - 32px)', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, fontFamily: 'Georgia, serif' }}>Casiers — {fichePartenaire.nom}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 3, fontFamily: 'sans-serif' }}>
+                  {casiersFiche.length} casier{casiersFiche.length !== 1 ? 's' : ''} —
+                  <span style={{ color: C.green, fontWeight: 600 }}> {casiersFiche.filter(c => c.statut === 'libre').length} libre{casiersFiche.filter(c => c.statut === 'libre').length !== 1 ? 's' : ''}</span> ·
+                  <span style={{ color: C.coral, fontWeight: 600 }}> {casiersFiche.filter(c => c.statut === 'occupe').length} occupé{casiersFiche.filter(c => c.statut === 'occupe').length !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              <div onClick={() => setFichePartenaire(null)} style={{ cursor: 'pointer', color: C.muted, fontSize: 24, lineHeight: 1 }}>×</div>
+            </div>
+
+            {chargementCasiers && (
+              <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>Chargement…</div>
+            )}
+
+            {!chargementCasiers && casiersFiche.length === 0 && (
+              <div style={{ padding: 40, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>🗃️</div>
+                Ce partenaire n'a pas encore créé de casiers.
+              </div>
+            )}
+
+            {!chargementCasiers && casiersFiche.length > 0 && (
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC' }}>
+                      {['Numéro', 'Taille', 'Statut', 'Colis assigné', 'Actions'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', fontSize: 10, color: C.muted, textAlign: 'left', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'sans-serif', fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {casiersFiche.map((c, i) => {
+                      const sColor = { libre: '#2EAF7D', occupe: C.coral, hors_service: '#AAA' };
+                      const sBg = { libre: '#E0F5EE', occupe: '#FDEEE9', hors_service: '#F5F5F5' };
+                      return (
+                        <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FAFBFC' }}>
+                          <td style={{ padding: '12px 14px', fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 700, color: C.navy }}>{c.numero}</td>
+                          <td style={{ padding: '12px 14px', fontSize: 12, color: '#666', fontFamily: 'sans-serif' }}>{c.taille || '—'}</td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <span style={{ background: sBg[c.statut] || '#F5F5F5', color: sColor[c.statut] || '#AAA', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, fontFamily: 'sans-serif' }}>
+                              {c.statut === 'libre' ? 'Libre' : c.statut === 'occupe' ? 'Occupé' : 'Hors service'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            {c.nom_destinataire ? (
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, fontFamily: 'sans-serif' }}>{c.nom_destinataire}</div>
+                                <div style={{ fontSize: 10, color: '#AAA', fontFamily: 'monospace', marginTop: 1 }}>{c.reference}</div>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 12, color: '#CCC', fontFamily: 'sans-serif' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {c.statut === 'occupe' && (
+                                <button onClick={() => handleAdminCasierStatut(c.id, 'libre')} style={{ background: '#D1FAE5', color: '#059669', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Libérer</button>
+                              )}
+                              {c.statut !== 'hors_service' && (
+                                <button onClick={() => handleAdminCasierStatut(c.id, 'hors_service')} style={{ background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Hors service</button>
+                              )}
+                              {c.statut === 'hors_service' && (
+                                <button onClick={() => handleAdminCasierStatut(c.id, 'libre')} style={{ background: '#D1FAE5', color: '#059669', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Remettre en service</button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setFichePartenaire(null)} style={{ padding: '10px 24px', background: '#F0F3F5', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer', color: '#666', fontFamily: 'sans-serif' }}>Fermer</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
