@@ -13,8 +13,8 @@ const {
 router.post('/', auth, creerColis);
 router.get('/', auth, getMesColis);
 
-// Colis à remettre : en transit ou déjà livrés au relais, destinés à ce partenaire
-router.get('/reception/a-remettre', auth, async (req, res) => {
+// Étape 1 : colis en transit/livré à réceptionner du livreur
+router.get('/reception/a-recevoir', auth, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT c.*, m.id as mission_id, m.livreur_id,
@@ -24,6 +24,27 @@ router.get('/reception/a-remettre', auth, async (req, res) => {
       JOIN partenaires p ON m.partenaire_depart_id = p.id
       WHERE m.partenaire_destination_id = $1
         AND c.statut IN ('en_transit', 'livre')
+        AND m.statut != 'termine'
+      ORDER BY c.updated_at DESC
+    `, [req.user.id]);
+    res.json({ colis: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Étape 2 : colis reçus au relais, en attente de remise au destinataire
+router.get('/reception/a-remettre', auth, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT c.*, m.id as mission_id, m.livreur_id,
+             p.nom as partenaire_depart_nom
+      FROM colis c
+      JOIN missions m ON m.colis_id = c.id
+      JOIN partenaires p ON m.partenaire_depart_id = p.id
+      WHERE m.partenaire_destination_id = $1
+        AND c.statut = 'recu_au_relais'
       ORDER BY c.updated_at DESC
     `, [req.user.id]);
     res.json({ colis: result.rows });
@@ -55,11 +76,48 @@ router.get('/reception/scan/:reference', auth, async (req, res) => {
   }
 });
 
-// Confirmer la remise au destinataire → colis 'paye' + paiement + clôture mission + gain livreur
-router.post('/reception/remettre/:reference', auth, async (req, res) => {
+// Étape 1 : réception du livreur → colis 'recu_au_relais' + clôture mission + gain livreur
+router.post('/reception/recevoir/:reference', auth, async (req, res) => {
   try {
     const colisRes = await db.query(`
       SELECT c.*, m.id as mission_id, m.livreur_id, m.gain_livreur
+      FROM colis c
+      JOIN missions m ON m.colis_id = c.id
+      WHERE c.reference = $1 AND m.partenaire_destination_id = $2
+        AND m.statut != 'termine'
+      LIMIT 1
+    `, [req.params.reference, req.user.id]);
+
+    if (colisRes.rows.length === 0)
+      return res.status(404).json({ message: 'Colis introuvable ou déjà réceptionné' });
+
+    const colis = colisRes.rows[0];
+    if (!['en_transit', 'livre'].includes(colis.statut))
+      return res.status(400).json({ message: 'Ce colis ne peut pas être réceptionné dans son état actuel' });
+
+    await db.query("UPDATE colis SET statut='recu_au_relais', updated_at=NOW() WHERE id=$1", [colis.id]);
+    await db.query("UPDATE missions SET statut='termine', updated_at=NOW() WHERE id=$1", [colis.mission_id]);
+
+    if (colis.livreur_id) {
+      await db.query("UPDATE livreurs SET solde = solde + $1 WHERE id=$2", [
+        parseFloat(colis.gain_livreur || 0),
+        colis.livreur_id
+      ]);
+    }
+
+    res.json({ message: 'Colis receptionne', reference: colis.reference });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Étape 2 : remise au destinataire → colis 'paye' + paiement
+// Gère aussi l'ancien flux (en_transit/livre) pour compatibilité
+router.post('/reception/remettre/:reference', auth, async (req, res) => {
+  try {
+    const colisRes = await db.query(`
+      SELECT c.*, m.id as mission_id, m.livreur_id, m.gain_livreur, m.statut as mission_statut
       FROM colis c
       JOIN missions m ON m.colis_id = c.id
       WHERE c.reference = $1 AND m.partenaire_destination_id = $2
@@ -72,6 +130,10 @@ router.post('/reception/remettre/:reference', auth, async (req, res) => {
     const colis = colisRes.rows[0];
     if (colis.statut === 'paye')
       return res.status(400).json({ message: 'Ce colis a deja ete remis' });
+
+    const ancienFlux = ['en_transit', 'livre'].includes(colis.statut);
+    if (!ancienFlux && colis.statut !== 'recu_au_relais')
+      return res.status(400).json({ message: 'Statut invalide pour la remise' });
 
     const prix = parseFloat(colis.prix);
     const avecLivreur = !!colis.livreur_id;
@@ -94,16 +156,17 @@ router.post('/reception/remettre/:reference', auth, async (req, res) => {
 
     await db.query("UPDATE colis SET statut='paye', updated_at=NOW() WHERE id=$1", [colis.id]);
 
-    // Clôturer la mission et créditer le gain du livreur
-    await db.query("UPDATE missions SET statut='termine', updated_at=NOW() WHERE id=$1", [colis.mission_id]);
-    if (avecLivreur) {
-      await db.query("UPDATE livreurs SET solde = solde + $1 WHERE id=$2", [
-        parseFloat(colis.gain_livreur || 0),
-        colis.livreur_id
-      ]);
+    // Ancien flux uniquement : clôturer la mission + créditer le livreur (déjà fait à l'étape 1 dans le nouveau flux)
+    if (ancienFlux) {
+      await db.query("UPDATE missions SET statut='termine', updated_at=NOW() WHERE id=$1", [colis.mission_id]);
+      if (avecLivreur) {
+        await db.query("UPDATE livreurs SET solde = solde + $1 WHERE id=$2", [
+          parseFloat(colis.gain_livreur || 0),
+          colis.livreur_id
+        ]);
+      }
     }
 
-    // Email confirmation au destinataire
     if (colis.email_destinataire) {
       const sujet = 'MayRelay – Votre ' + colis.type.toLowerCase() + ' ' + colis.reference + ' a été récupéré';
       const corps = 'Bonjour ' + colis.nom_destinataire + ',\n\nVotre ' + colis.type.toLowerCase() + ' ' + colis.reference + ' a bien été récupéré. Merci d\'avoir choisi MayRelay !\n\nL\'équipe MayRelay';

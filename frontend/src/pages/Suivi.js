@@ -25,12 +25,19 @@ const statutConfig = {
     bg: '#D1FAE5',
     description: 'Votre colis est arrive au point relais. Vous pouvez venir le recuperer.'
   },
+  recu_au_relais: {
+    label: 'Disponible au point relais',
+    icon: '🏪',
+    color: '#0F766E',
+    bg: '#CCFBF1',
+    description: 'Votre colis est bien arrive au point relais. Venez le recuperer avec votre reference.'
+  },
   paye: {
-    label: 'Votre colis est pret a etre retire',
-    icon: '✅',
+    label: 'Colis remis au destinataire',
+    icon: '🎉',
     color: '#10B981',
     bg: '#D1FAE5',
-    description: 'Votre colis est disponible au point relais. Venez le recuperer avec votre reference.'
+    description: 'Votre colis a ete remis. Merci d avoir choisi MayRelay !'
   },
 };
 
@@ -38,13 +45,15 @@ const etapes = [
   { key: 'enregistre', label: 'Enregistre', icon: '📝' },
   { key: 'en_attente', label: 'En attente', icon: '📦' },
   { key: 'en_transit', label: 'En transit', icon: '🛵' },
-  { key: 'livre', label: 'Livre', icon: '✅' },
+  { key: 'recu_au_relais', label: 'Au relais', icon: '🏪' },
+  { key: 'paye', label: 'Remis', icon: '🎉' },
 ];
 
 function getEtapeIndex(statut) {
   if (statut === 'en_attente') return 1;
   if (statut === 'en_transit') return 2;
-  if (statut === 'livre' || statut === 'paye') return 3;
+  if (statut === 'livre' || statut === 'recu_au_relais') return 3;
+  if (statut === 'paye') return 4;
   return 0;
 }
 
@@ -174,7 +183,7 @@ export default function Suivi() {
             </div>
 
             {/* Message si disponible */}
-            {(colis.statut === 'livre' || colis.statut === 'paye') && (
+            {(colis.statut === 'livre' || colis.statut === 'recu_au_relais') && (
               <div style={{ margin: '0 24px 24px', background: '#065F46', borderRadius: 12, padding: '16px 20px' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>Votre colis est disponible</div>
                 <div style={{ fontSize: 13, color: '#6EE7B7', lineHeight: 1.6 }}>
