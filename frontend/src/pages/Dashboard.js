@@ -79,9 +79,10 @@ const partagerEtiquette = async (c, logo, onStart, onEnd) => {
   }
   onStart?.();
   try {
+    // 100mm × 150mm à 96dpi × 2 pour netteté
     const s = 2;
-    const W = 378 * s;
-    const H = 265 * s;
+    const W = 378 * s;  // 100mm
+    const H = 567 * s;  // 150mm
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -96,6 +97,7 @@ const partagerEtiquette = async (c, logo, onStart, onEnd) => {
       img.src = src;
     });
 
+    // Fond blanc + bordure
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = '#bbbbbb';
@@ -104,81 +106,104 @@ const partagerEtiquette = async (c, logo, onStart, onEnd) => {
 
     const [logoImg, qrImg] = await Promise.all([loadImg(logo), loadImg(c.qr_code)]);
 
-    const pad = 7 * s;
-    const headerH = 30 * s;
+    const pad = 14 * s;
+    const headerH = 48 * s;
 
+    // Ligne de séparation du header
     ctx.strokeStyle = '#0A4B6E';
-    ctx.lineWidth = 1.5 * s;
+    ctx.lineWidth = 2 * s;
     ctx.beginPath();
     ctx.moveTo(pad, pad + headerH);
     ctx.lineTo(W - pad, pad + headerH);
     ctx.stroke();
 
+    // Logo ou texte marque
     if (logoImg) {
-      const lh = 20 * s;
-      const lw = Math.min(80 * s, logoImg.width * (lh / logoImg.height));
-      ctx.drawImage(logoImg, pad + 2 * s, pad + 4 * s, lw, lh);
+      const lh = 26 * s;
+      const lw = Math.min(90 * s, logoImg.width * (lh / logoImg.height));
+      ctx.drawImage(logoImg, pad + 4 * s, pad + 6 * s, lw, lh);
     } else {
-      ctx.font = `700 ${11 * s}px Arial, sans-serif`;
+      ctx.font = `700 ${14 * s}px Arial, sans-serif`;
       ctx.fillStyle = '#0A4B6E';
-      ctx.fillText('MayRelay', pad + 2 * s, pad + 20 * s);
+      ctx.fillText('MayRelay', pad + 4 * s, pad + 32 * s);
     }
 
-    ctx.font = `700 ${9 * s}px monospace`;
+    // Référence centrée
+    ctx.font = `700 ${12 * s}px monospace`;
     ctx.fillStyle = '#1A7FA8';
     const refW = ctx.measureText(c.reference).width;
-    ctx.fillText(c.reference, (W - refW) / 2, pad + 22 * s);
+    ctx.fillText(c.reference, (W - refW) / 2, pad + 34 * s);
 
+    // Badge type (coin droit)
     const badgeText = c.type || 'Colis';
-    ctx.font = `700 ${7 * s}px Arial, sans-serif`;
-    const bw = ctx.measureText(badgeText).width + 10 * s;
-    const bh = 14 * s;
+    ctx.font = `700 ${9 * s}px Arial, sans-serif`;
+    const bw = ctx.measureText(badgeText).width + 14 * s;
+    const bh = 18 * s;
     const bx = W - pad - bw - 2 * s;
-    const by = pad + 6 * s;
+    const by = pad + 8 * s;
     ctx.fillStyle = '#E8613A';
     ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(badgeText, bx + 5 * s, by + 10 * s);
+    ctx.fillText(badgeText, bx + 7 * s, by + 13 * s);
 
-    const mainY = pad + headerH + 8 * s;
-    const qrSize = 82 * s;
-    if (qrImg) ctx.drawImage(qrImg, pad + 2 * s, mainY, qrSize, qrSize);
+    // QR code centré, grand
+    const qrSize = 240 * s;
+    const qrX = (W - qrSize) / 2;
+    const qrY = pad + headerH + 14 * s;
+    if (qrImg) ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-    const infoX = pad + qrSize + 10 * s;
-    const maxInfoW = W - infoX - pad;
-    let iy = mainY + 2 * s;
-
+    // Nom destinataire — grand, centré
     const nomComplet = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
-    ctx.font = `800 ${12 * s}px Arial, sans-serif`;
+    const nameY = qrY + qrSize + 22 * s;
+    ctx.font = `800 ${22 * s}px Arial, sans-serif`;
     ctx.fillStyle = '#0D1F2D';
-    if (ctx.measureText(nomComplet).width > maxInfoW) ctx.font = `800 ${10 * s}px Arial, sans-serif`;
-    ctx.fillText(nomComplet, infoX, iy + 12 * s, maxInfoW);
-    iy += 18 * s;
+    if (ctx.measureText(nomComplet).width > W - 2 * pad) ctx.font = `800 ${17 * s}px Arial, sans-serif`;
+    if (ctx.measureText(nomComplet).width > W - 2 * pad) ctx.font = `800 ${13 * s}px Arial, sans-serif`;
+    const nw = ctx.measureText(nomComplet).width;
+    ctx.fillText(nomComplet, (W - nw) / 2, nameY);
 
-    for (const [lbl, val] of [['Tel', c.telephone_destinataire], ['Zone', c.quartier], ['Date', new Date(c.created_at).toLocaleDateString('fr-FR')]]) {
-      ctx.font = `${8 * s}px Arial, sans-serif`;
+    // Ligne de séparation avant les détails
+    const divY = nameY + 16 * s;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = s;
+    ctx.beginPath();
+    ctx.moveTo(pad, divY);
+    ctx.lineTo(W - pad, divY);
+    ctx.stroke();
+
+    // Lignes de détail pleine largeur
+    const detailX = pad + 8 * s;
+    let dy = divY + 18 * s;
+    const rowH = 38 * s;
+    for (const [lbl, val] of [
+      ['Tel', c.telephone_destinataire],
+      ['Zone', c.quartier],
+      ['Date', new Date(c.created_at).toLocaleDateString('fr-FR')],
+    ]) {
+      ctx.font = `${10 * s}px Arial, sans-serif`;
       ctx.fillStyle = '#888888';
-      ctx.fillText(`${lbl} :`, infoX, iy + 8 * s);
-      const lblW = ctx.measureText(`${lbl} : `).width;
-      ctx.font = `600 ${8 * s}px Arial, sans-serif`;
+      ctx.fillText(`${lbl} :`, detailX, dy);
+      const lblW = ctx.measureText(`${lbl} :  `).width;
+      ctx.font = `600 ${11 * s}px Arial, sans-serif`;
       ctx.fillStyle = '#0D1F2D';
-      ctx.fillText(String(val || ''), infoX + lblW, iy + 8 * s);
-      iy += 13 * s;
+      ctx.fillText(String(val || ''), detailX + lblW, dy);
+      dy += rowH;
     }
 
-    const footerY = H - 18 * s;
+    // Footer
+    const footerY = H - 40 * s;
     ctx.strokeStyle = '#dddddd';
     ctx.lineWidth = s;
     ctx.beginPath();
     ctx.moveTo(pad, footerY);
     ctx.lineTo(W - pad, footerY);
     ctx.stroke();
-    ctx.font = `${6.5 * s}px Arial, sans-serif`;
+    ctx.font = `${8 * s}px Arial, sans-serif`;
     ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('mayrelay.vercel.app/suivi', pad + 2 * s, footerY + 10 * s);
+    ctx.fillText('mayrelay.vercel.app/suivi', pad + 4 * s, footerY + 16 * s);
     const dateStr = new Date(c.created_at).toLocaleDateString('fr-FR');
     const dw = ctx.measureText(dateStr).width;
-    ctx.fillText(dateStr, W - pad - dw - 2 * s, footerY + 10 * s);
+    ctx.fillText(dateStr, W - pad - dw - 4 * s, footerY + 16 * s);
 
     const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
     const file = new File([blob], `etiquette-${c.reference}.png`, { type: 'image/png' });
