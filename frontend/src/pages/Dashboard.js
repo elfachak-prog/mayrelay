@@ -72,6 +72,128 @@ const imprimerEtiquette = (c, logo) => {
   w.document.close();
 };
 
+const partagerEtiquette = async (c, logo, onStart, onEnd) => {
+  if (!navigator.share) {
+    alert("Le partage n'est pas disponible. Utilisez Chrome sur Android.");
+    return;
+  }
+  onStart?.();
+  try {
+    const s = 2;
+    const W = 378 * s;
+    const H = 265 * s;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const loadImg = (src) => new Promise((res) => {
+      if (!src) return res(null);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => res(img);
+      img.onerror = () => res(null);
+      img.src = src;
+    });
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#bbbbbb';
+    ctx.lineWidth = s;
+    ctx.strokeRect(s / 2, s / 2, W - s, H - s);
+
+    const [logoImg, qrImg] = await Promise.all([loadImg(logo), loadImg(c.qr_code)]);
+
+    const pad = 7 * s;
+    const headerH = 30 * s;
+
+    ctx.strokeStyle = '#0A4B6E';
+    ctx.lineWidth = 1.5 * s;
+    ctx.beginPath();
+    ctx.moveTo(pad, pad + headerH);
+    ctx.lineTo(W - pad, pad + headerH);
+    ctx.stroke();
+
+    if (logoImg) {
+      const lh = 20 * s;
+      const lw = Math.min(80 * s, logoImg.width * (lh / logoImg.height));
+      ctx.drawImage(logoImg, pad + 2 * s, pad + 4 * s, lw, lh);
+    } else {
+      ctx.font = `700 ${11 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#0A4B6E';
+      ctx.fillText('MayRelay', pad + 2 * s, pad + 20 * s);
+    }
+
+    ctx.font = `700 ${9 * s}px monospace`;
+    ctx.fillStyle = '#1A7FA8';
+    const refW = ctx.measureText(c.reference).width;
+    ctx.fillText(c.reference, (W - refW) / 2, pad + 22 * s);
+
+    const badgeText = c.type || 'Colis';
+    ctx.font = `700 ${7 * s}px Arial, sans-serif`;
+    const bw = ctx.measureText(badgeText).width + 10 * s;
+    const bh = 14 * s;
+    const bx = W - pad - bw - 2 * s;
+    const by = pad + 6 * s;
+    ctx.fillStyle = '#E8613A';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(badgeText, bx + 5 * s, by + 10 * s);
+
+    const mainY = pad + headerH + 8 * s;
+    const qrSize = 82 * s;
+    if (qrImg) ctx.drawImage(qrImg, pad + 2 * s, mainY, qrSize, qrSize);
+
+    const infoX = pad + qrSize + 10 * s;
+    const maxInfoW = W - infoX - pad;
+    let iy = mainY + 2 * s;
+
+    const nomComplet = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
+    ctx.font = `800 ${12 * s}px Arial, sans-serif`;
+    ctx.fillStyle = '#0D1F2D';
+    if (ctx.measureText(nomComplet).width > maxInfoW) ctx.font = `800 ${10 * s}px Arial, sans-serif`;
+    ctx.fillText(nomComplet, infoX, iy + 12 * s, maxInfoW);
+    iy += 18 * s;
+
+    for (const [lbl, val] of [['Tel', c.telephone_destinataire], ['Zone', c.quartier], ['Date', new Date(c.created_at).toLocaleDateString('fr-FR')]]) {
+      ctx.font = `${8 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#888888';
+      ctx.fillText(`${lbl} :`, infoX, iy + 8 * s);
+      const lblW = ctx.measureText(`${lbl} : `).width;
+      ctx.font = `600 ${8 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#0D1F2D';
+      ctx.fillText(String(val || ''), infoX + lblW, iy + 8 * s);
+      iy += 13 * s;
+    }
+
+    const footerY = H - 18 * s;
+    ctx.strokeStyle = '#dddddd';
+    ctx.lineWidth = s;
+    ctx.beginPath();
+    ctx.moveTo(pad, footerY);
+    ctx.lineTo(W - pad, footerY);
+    ctx.stroke();
+    ctx.font = `${6.5 * s}px Arial, sans-serif`;
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillText('mayrelay.vercel.app/suivi', pad + 2 * s, footerY + 10 * s);
+    const dateStr = new Date(c.created_at).toLocaleDateString('fr-FR');
+    const dw = ctx.measureText(dateStr).width;
+    ctx.fillText(dateStr, W - pad - dw - 2 * s, footerY + 10 * s);
+
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+    const file = new File([blob], `etiquette-${c.reference}.png`, { type: 'image/png' });
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+      alert("Le partage de fichiers n'est pas supporté sur ce navigateur.");
+      return;
+    }
+    await navigator.share({ title: `Etiquette ${c.reference}`, files: [file] });
+  } catch (err) {
+    if (err.name !== 'AbortError') console.error('Erreur partage:', err);
+  } finally {
+    onEnd?.();
+  }
+};
+
 export default function Dashboard({ user, onLogout, ongletInitial, isMobile, logo }) {
   const [onglet, setOnglet] = useState(ongletInitial || 'dashboard');
   const [colis, setColis] = useState([]);
@@ -90,6 +212,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
   const [succes, setSucces] = useState(null);
   const [tarifVolumineux, setTarifVolumineux] = useState({ base: 8, parKg: 1.5 });
   const [logoLocal, setLogoLocal] = useState(logo || '');
+  const [partageRef, setPartageRef] = useState(null);
 
   useEffect(() => {
     chargerColis();
@@ -236,6 +359,13 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                   style={{ background: COLORS.white, color: COLORS.ocean, border: `2px solid ${COLORS.ocean}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
                 >
                   🖨️ Imprimer l'étiquette
+                </button>
+                <button
+                  onClick={() => partagerEtiquette(succes, logoLocal, () => setPartageRef(succes.reference), () => setPartageRef(null))}
+                  disabled={partageRef === succes.reference}
+                  style={{ background: partageRef === succes.reference ? '#F0F3F5' : COLORS.white, color: COLORS.lagoon, border: `2px solid ${COLORS.lagoon}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: partageRef === succes.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}
+                >
+                  {partageRef === succes.reference ? '⏳ Préparation…' : '📤 Partager l\'étiquette'}
                 </button>
                 <button onClick={() => setSucces(null)} style={{ background: COLORS.coral, color: COLORS.white, border: 'none', borderRadius: 12, padding: '14px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
                   + Nouvel envoi
@@ -395,12 +525,21 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                     <div style={{ fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
-                    <button
-                      onClick={() => imprimerEtiquette(c, logoLocal)}
-                      style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
-                    >
-                      🖨️ Étiquette
-                    </button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => imprimerEtiquette(c, logoLocal)}
+                        style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                      >
+                        🖨️
+                      </button>
+                      <button
+                        onClick={() => partagerEtiquette(c, logoLocal, () => setPartageRef(c.reference), () => setPartageRef(null))}
+                        disabled={partageRef === c.reference}
+                        style={{ background: partageRef === c.reference ? '#F0F3F5' : 'transparent', color: COLORS.lagoon, border: `1.5px solid ${COLORS.lagoon}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: partageRef === c.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}
+                      >
+                        {partageRef === c.reference ? '⏳' : '📤 Partager'}
+                      </button>
+                    </div>
                   </div>
                   </div>
                 );
@@ -430,12 +569,21 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                         <td style={{ padding: '13px 16px' }}><span style={{ background: s.bg, color: s.color, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.label}</span></td>
                         <td style={{ padding: '13px 16px', fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
                         <td style={{ padding: '8px 16px' }}>
-                          <button
-                            onClick={() => imprimerEtiquette(c, logoLocal)}
-                            style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
-                          >
-                            🖨️ Étiquette
-                          </button>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => imprimerEtiquette(c, logoLocal)}
+                              style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
+                            >
+                              🖨️ Étiquette
+                            </button>
+                            <button
+                              onClick={() => partagerEtiquette(c, logoLocal, () => setPartageRef(c.reference), () => setPartageRef(null))}
+                              disabled={partageRef === c.reference}
+                              style={{ background: partageRef === c.reference ? '#F0F3F5' : 'transparent', color: COLORS.lagoon, border: `1.5px solid ${COLORS.lagoon}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: partageRef === c.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
+                            >
+                              {partageRef === c.reference ? '⏳' : '📤 Partager'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
