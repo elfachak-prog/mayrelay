@@ -174,6 +174,13 @@ app.listen(PORT, async () => {
     console.error('Migration casiers.taille:', err.message);
   }
   try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS nom_expediteur TEXT');
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS telephone_expediteur TEXT');
+    console.log('Migration colis.expediteur OK');
+  } catch (err) {
+    console.error('Migration colis.expediteur:', err.message);
+  }
+  try {
     await db.query(`CREATE TABLE IF NOT EXISTS demandes_inscription (
       id SERIAL PRIMARY KEY,
       role TEXT NOT NULL CHECK (role IN ('partenaire', 'livreur')),

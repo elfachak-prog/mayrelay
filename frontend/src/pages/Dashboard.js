@@ -19,21 +19,22 @@ const statutConfig = {
 
 const quartiers = ["Mamoudzou Centre","Kaweni","Bandraboua","Koungou","Pamandzi","Dzaoudzi","Labattoir","Labattoir Centre","Boueni","Chiconi","Sada","Tsingoni","Mtsamboro"];
 
-const imprimerEtiquette = (c, logo) => {
-  const w = window.open('', '_blank', 'width=420,height=320');
+const imprimerEtiquette = (c, logo, partenaireNom) => {
+  const w = window.open('', '_blank', 'width=420,height=370');
   const date = new Date(c.created_at).toLocaleDateString('fr-FR');
   const nomComplet = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
   const logoHtml = logo
     ? `<img src="${logo}" style="height:24px;max-width:90px;object-fit:contain;display:block;" />`
     : `<span style="font-size:11pt;font-weight:700;color:#0A4B6E;">MayRelay</span>`;
+  const fromText = [c.nom_expediteur, c.telephone_expediteur, partenaireNom].filter(Boolean).join(' · ');
 
   w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <style>
-  @page { size: 10cm 7cm; margin: 0; }
+  @page { size: 10cm 8cm; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { width: 10cm; height: 7cm; font-family: Arial, Helvetica, sans-serif; background: #fff; }
-  .label { width: 10cm; height: 7cm; padding: 5px 7px; display: flex; flex-direction: column; border: 1px solid #bbb; }
+  body { width: 10cm; height: 8cm; font-family: Arial, Helvetica, sans-serif; background: #fff; }
+  .label { width: 10cm; height: 8cm; padding: 5px 7px; display: flex; flex-direction: column; border: 1px solid #bbb; }
   .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #0A4B6E; padding-bottom: 4px; margin-bottom: 5px; }
   .ref { font-family: monospace; font-size: 9pt; font-weight: 700; color: #1A7FA8; letter-spacing: 0.5px; }
   .badge { font-size: 7pt; background: #E8613A; color: #fff; padding: 2px 6px; border-radius: 3px; font-weight: 700; }
@@ -44,7 +45,9 @@ const imprimerEtiquette = (c, logo) => {
   .row { font-size: 8pt; color: #444; margin-bottom: 4px; display: flex; gap: 4px; }
   .row-label { color: #888; min-width: 10px; }
   .row-val { font-weight: 600; color: #0D1F2D; }
-  .footer { border-top: 1px solid #ddd; padding-top: 3px; margin-top: 3px; font-size: 6.5pt; color: #aaa; display: flex; justify-content: space-between; }
+  .from { background: #EAF6FB; border-radius: 2px; padding: 3px 5px; margin-bottom: 3px; font-size: 6.5pt; color: #0D1F2D; }
+  .from-lbl { font-weight: 700; color: #0A4B6E; }
+  .footer { border-top: 1px solid #ddd; padding-top: 3px; font-size: 6.5pt; color: #aaa; display: flex; justify-content: space-between; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style></head><body>
 <div class="label">
@@ -62,6 +65,7 @@ const imprimerEtiquette = (c, logo) => {
       <div class="row"><span class="row-label">📅</span><span class="row-val">${date}</span></div>
     </div>
   </div>
+  ${fromText ? `<div class="from"><span class="from-lbl">DE : </span>${fromText}</div>` : ''}
   <div class="footer">
     <span>mayrelay.vercel.app/suivi</span>
     <span>${date}</span>
@@ -72,7 +76,7 @@ const imprimerEtiquette = (c, logo) => {
   w.document.close();
 };
 
-const partagerEtiquette = async (c, logo, onStart, onEnd) => {
+const partagerEtiquette = async (c, logo, partenaireNom, onStart, onEnd) => {
   if (!navigator.share) {
     alert("Le partage n'est pas disponible. Utilisez Chrome sur Android.");
     return;
@@ -191,7 +195,21 @@ const partagerEtiquette = async (c, logo, onStart, onEnd) => {
     }
 
     // Footer
+    // Section DE : expéditeur + point relais
+    const expedItems = [c.nom_expediteur, c.telephone_expediteur, partenaireNom].filter(Boolean);
     const footerY = H - 40 * s;
+    if (expedItems.length > 0) {
+      const deY = dy + 3 * s;
+      ctx.fillStyle = '#EAF6FB';
+      ctx.fillRect(pad, deY, W - 2 * pad, footerY - deY);
+      ctx.font = `700 ${9 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#0A4B6E';
+      ctx.fillText('DE :', pad + 6 * s, deY + 14 * s);
+      const deLblW = ctx.measureText('DE :  ').width;
+      ctx.font = `${9 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#0D1F2D';
+      ctx.fillText(expedItems.join('  ·  '), pad + 6 * s + deLblW, deY + 14 * s, W - 2 * pad - deLblW - 12 * s);
+    }
     ctx.strokeStyle = '#dddddd';
     ctx.lineWidth = s;
     ctx.beginPath();
@@ -380,13 +398,13 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
               {succes.qr_code && <img src={succes.qr_code} alt="QR" style={{ width: 140, height: 140, marginBottom: 20 }} />}
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
                 <button
-                  onClick={() => imprimerEtiquette(succes, logoLocal)}
+                  onClick={() => imprimerEtiquette(succes, logoLocal, user.nom)}
                   style={{ background: COLORS.white, color: COLORS.ocean, border: `2px solid ${COLORS.ocean}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
                 >
                   🖨️ Imprimer l'étiquette
                 </button>
                 <button
-                  onClick={() => partagerEtiquette(succes, logoLocal, () => setPartageRef(succes.reference), () => setPartageRef(null))}
+                  onClick={() => partagerEtiquette(succes, logoLocal, user.nom, () => setPartageRef(succes.reference), () => setPartageRef(null))}
                   disabled={partageRef === succes.reference}
                   style={{ background: partageRef === succes.reference ? '#F0F3F5' : COLORS.white, color: COLORS.lagoon, border: `2px solid ${COLORS.lagoon}`, borderRadius: 12, padding: '13px 22px', fontSize: 14, fontWeight: 700, cursor: partageRef === succes.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}
                 >
@@ -519,8 +537,8 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
 
               <button
                 onClick={handleEnvoi}
-                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.quartier || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))}
-                style={{ marginTop: 20, width: '100%', padding: 16, background: (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))) ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.quartier || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))}
+                style={{ marginTop: 20, width: '100%', padding: 16, background: (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))) ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
               >
                 {chargement ? 'Enregistrement...' : "Enregistrer l'envoi →"}
               </button>
@@ -552,13 +570,13 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                     <div style={{ fontSize: 11, color: '#AAA' }}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
-                        onClick={() => imprimerEtiquette(c, logoLocal)}
+                        onClick={() => imprimerEtiquette(c, logoLocal, user.nom)}
                         style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
                       >
                         🖨️
                       </button>
                       <button
-                        onClick={() => partagerEtiquette(c, logoLocal, () => setPartageRef(c.reference), () => setPartageRef(null))}
+                        onClick={() => partagerEtiquette(c, logoLocal, user.nom, () => setPartageRef(c.reference), () => setPartageRef(null))}
                         disabled={partageRef === c.reference}
                         style={{ background: partageRef === c.reference ? '#F0F3F5' : 'transparent', color: COLORS.lagoon, border: `1.5px solid ${COLORS.lagoon}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: partageRef === c.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}
                       >
@@ -596,13 +614,13 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                         <td style={{ padding: '8px 16px' }}>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              onClick={() => imprimerEtiquette(c, logoLocal)}
+                              onClick={() => imprimerEtiquette(c, logoLocal, user.nom)}
                               style={{ background: 'transparent', color: COLORS.ocean, border: `1.5px solid ${COLORS.ocean}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
                             >
                               🖨️ Étiquette
                             </button>
                             <button
-                              onClick={() => partagerEtiquette(c, logoLocal, () => setPartageRef(c.reference), () => setPartageRef(null))}
+                              onClick={() => partagerEtiquette(c, logoLocal, user.nom, () => setPartageRef(c.reference), () => setPartageRef(null))}
                               disabled={partageRef === c.reference}
                               style={{ background: partageRef === c.reference ? '#F0F3F5' : 'transparent', color: COLORS.lagoon, border: `1.5px solid ${COLORS.lagoon}`, borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: partageRef === c.reference ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif', whiteSpace: 'nowrap' }}
                             >
