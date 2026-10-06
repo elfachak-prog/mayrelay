@@ -83,10 +83,9 @@ const partagerEtiquette = async (c, logo, partenaireNom, onStart, onEnd) => {
   }
   onStart?.();
   try {
-    // 100mm × 150mm à 96dpi × 2 pour netteté
     const s = 2;
-    const W = 378 * s;  // 100mm
-    const H = 567 * s;  // 150mm
+    const W = 378 * s;  // 100mm à 96 dpi
+    const H = 567 * s;  // 150mm à 96 dpi
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -101,128 +100,161 @@ const partagerEtiquette = async (c, logo, partenaireNom, onStart, onEnd) => {
       img.src = src;
     });
 
-    // Fond blanc + bordure
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = '#bbbbbb';
-    ctx.lineWidth = s;
-    ctx.strokeRect(s / 2, s / 2, W - s, H - s);
 
     const [logoImg, qrImg] = await Promise.all([loadImg(logo), loadImg(c.qr_code)]);
 
-    const pad = 14 * s;
-    const headerH = 48 * s;
+    // Constantes de mise en page (pixels logiques, ×s pour canvas)
+    const bm  = 5;   // marge bordure extérieure
+    const pad = 10;  // padding intérieur des sections
+    const iw  = W / s - 2 * bm; // largeur intérieure = 368 px
+    const dateStr  = new Date(c.created_at).toLocaleDateString('fr-FR');
+    const nomDest  = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
+    const refStr   = c.reference || '';
 
-    // Ligne de séparation du header
-    ctx.strokeStyle = '#0A4B6E';
+    // ── Helpers ──────────────────────────────────────────────
+    const hline = (yp, thick = 1.5) => {
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = thick * s;
+      ctx.beginPath();
+      ctx.moveTo(bm * s, yp * s);
+      ctx.lineTo((W / s - bm) * s, yp * s);
+      ctx.stroke();
+    };
+
+    // Texte simple (retourne la largeur logique mesurée)
+    const txt = (str, x, y, size, bold = false, maxW) => {
+      ctx.font = `${bold ? '700 ' : ''}${size * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#000000';
+      const sv = String(str || '');
+      if (maxW) ctx.fillText(sv, x * s, y * s, maxW * s);
+      else      ctx.fillText(sv, x * s, y * s);
+      return ctx.measureText(sv).width / s;
+    };
+
+    // Libellé petit + valeur en gras sur la même ligne
+    const lv = (lbl, val, x, y, valSz, maxW) => {
+      ctx.font = `${8 * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#000000';
+      ctx.fillText(lbl, x * s, y * s);
+      const lw = ctx.measureText(lbl + ' ').width / s;
+      ctx.font = `700 ${valSz * s}px Arial, sans-serif`;
+      ctx.fillStyle = '#000000';
+      const sv = String(val || '—');
+      if (maxW) ctx.fillText(sv, (x + lw) * s, y * s, (maxW - lw) * s);
+      else      ctx.fillText(sv, (x + lw) * s, y * s);
+    };
+
+    // Barre de titre de section (fond gris clair + texte gras)
+    const secTitle = (label, y, h) => {
+      ctx.fillStyle = '#eeeeee';
+      ctx.fillRect((bm + 1) * s, (y + 1) * s, (iw - 2) * s, (h - 1) * s);
+      txt(label, bm + pad, y + h - 6, 10, true);
+    };
+
+    // ── Bordure extérieure (2 px) ────────────────────────────
+    ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2 * s;
-    ctx.beginPath();
-    ctx.moveTo(pad, pad + headerH);
-    ctx.lineTo(W - pad, pad + headerH);
-    ctx.stroke();
+    ctx.strokeRect(bm * s, bm * s, iw * s, (H / s - 2 * bm) * s);
 
-    // Logo ou texte marque
+    // ════════════════════════════════════════════════════════
+    // 1. ENTÊTE  y: 5 → 63  (h = 58)
+    // ════════════════════════════════════════════════════════
+    const hY = bm, hH = 58;
+
     if (logoImg) {
-      const lh = 26 * s;
-      const lw = Math.min(90 * s, logoImg.width * (lh / logoImg.height));
-      ctx.drawImage(logoImg, pad + 4 * s, pad + 6 * s, lw, lh);
+      const lh = 26, lw2 = Math.min(100, logoImg.width * (lh / logoImg.height));
+      ctx.drawImage(logoImg, (bm + pad) * s, (hY + 16) * s, lw2 * s, lh * s);
     } else {
-      ctx.font = `700 ${14 * s}px Arial, sans-serif`;
-      ctx.fillStyle = '#0A4B6E';
-      ctx.fillText('MayRelay', pad + 4 * s, pad + 32 * s);
+      txt('MayRelay', bm + pad, hY + 38, 14, true);
     }
 
-    // Référence centrée
-    ctx.font = `700 ${12 * s}px monospace`;
-    ctx.fillStyle = '#1A7FA8';
-    const refW = ctx.measureText(c.reference).width;
-    ctx.fillText(c.reference, (W - refW) / 2, pad + 34 * s);
+    // Référence — grande, centrée, monospace
+    ctx.font = `700 ${17 * s}px "Courier New", monospace`;
+    ctx.fillStyle = '#000000';
+    const refPxW = ctx.measureText(refStr).width;
+    ctx.fillText(refStr, (W - refPxW) / 2, (hY + 40) * s);
 
-    // Badge type (coin droit)
-    const badgeText = c.type || 'Colis';
+    // Badge type — fond noir, texte blanc
     ctx.font = `700 ${9 * s}px Arial, sans-serif`;
-    const bw = ctx.measureText(badgeText).width + 14 * s;
-    const bh = 18 * s;
-    const bx = W - pad - bw - 2 * s;
-    const by = pad + 8 * s;
-    ctx.fillStyle = '#E8613A';
-    ctx.fillRect(bx, by, bw, bh);
+    const typeStr = (c.type || 'Colis').toUpperCase();
+    const btW = ctx.measureText(typeStr).width + 16 * s;
+    const btH = 22 * s;
+    const btX = (W / s - bm - pad) * s - btW;
+    const btY = (hY + 18) * s;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(btX, btY, btW, btH);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(badgeText, bx + 7 * s, by + 13 * s);
+    ctx.fillText(typeStr, btX + 8 * s, btY + 15 * s);
 
-    // QR code centré, grand
-    const qrSize = 240 * s;
-    const qrX = (W - qrSize) / 2;
-    const qrY = pad + headerH + 14 * s;
-    if (qrImg) ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    hline(hY + hH, 2);
 
-    // Nom destinataire — grand, centré
-    const nomComplet = [c.nom_destinataire, c.prenom_destinataire].filter(Boolean).join(' ');
-    const nameY = qrY + qrSize + 22 * s;
-    ctx.font = `800 ${22 * s}px Arial, sans-serif`;
-    ctx.fillStyle = '#0D1F2D';
-    if (ctx.measureText(nomComplet).width > W - 2 * pad) ctx.font = `800 ${17 * s}px Arial, sans-serif`;
-    if (ctx.measureText(nomComplet).width > W - 2 * pad) ctx.font = `800 ${13 * s}px Arial, sans-serif`;
-    const nw = ctx.measureText(nomComplet).width;
-    ctx.fillText(nomComplet, (W - nw) / 2, nameY);
+    // ════════════════════════════════════════════════════════
+    // 2. EXPÉDITEUR  y: 63 → 293  (h = 230)
+    // ════════════════════════════════════════════════════════
+    const eY = hY + hH, eH = 230, tH = 22;
 
-    // Ligne de séparation avant les détails
-    const divY = nameY + 16 * s;
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = s;
-    ctx.beginPath();
-    ctx.moveTo(pad, divY);
-    ctx.lineTo(W - pad, divY);
-    ctx.stroke();
+    secTitle('EXPÉDITEUR — dépositaire', eY, tH);
 
-    // Lignes de détail pleine largeur
-    const detailX = pad + 8 * s;
-    let dy = divY + 18 * s;
-    const rowH = 38 * s;
-    for (const [lbl, val] of [
-      ['Tel', c.telephone_destinataire],
-      ['Zone', c.quartier],
-      ['Date', new Date(c.created_at).toLocaleDateString('fr-FR')],
-    ]) {
-      ctx.font = `${10 * s}px Arial, sans-serif`;
-      ctx.fillStyle = '#888888';
-      ctx.fillText(`${lbl} :`, detailX, dy);
-      const lblW = ctx.measureText(`${lbl} :  `).width;
-      ctx.font = `600 ${11 * s}px Arial, sans-serif`;
-      ctx.fillStyle = '#0D1F2D';
-      ctx.fillText(String(val || ''), detailX + lblW, dy);
-      dy += rowH;
-    }
+    // QR code à gauche
+    const qrSz = 118;
+    if (qrImg) ctx.drawImage(qrImg, (bm + pad) * s, (eY + tH + 8) * s, qrSz * s, qrSz * s);
 
-    // Footer
-    // Section DE : expéditeur + point relais
-    const expedItems = [c.nom_expediteur, c.telephone_expediteur, partenaireNom].filter(Boolean);
-    const footerY = H - 40 * s;
-    if (expedItems.length > 0) {
-      const deY = dy + 3 * s;
-      ctx.fillStyle = '#EAF6FB';
-      ctx.fillRect(pad, deY, W - 2 * pad, footerY - deY);
-      ctx.font = `700 ${9 * s}px Arial, sans-serif`;
-      ctx.fillStyle = '#0A4B6E';
-      ctx.fillText('DE :', pad + 6 * s, deY + 14 * s);
-      const deLblW = ctx.measureText('DE :  ').width;
-      ctx.font = `${9 * s}px Arial, sans-serif`;
-      ctx.fillStyle = '#0D1F2D';
-      ctx.fillText(expedItems.join('  ·  '), pad + 6 * s + deLblW, deY + 14 * s, W - 2 * pad - deLblW - 12 * s);
-    }
-    ctx.strokeStyle = '#dddddd';
-    ctx.lineWidth = s;
-    ctx.beginPath();
-    ctx.moveTo(pad, footerY);
-    ctx.lineTo(W - pad, footerY);
-    ctx.stroke();
+    // Infos expéditeur à droite du QR
+    const eiX = bm + pad + qrSz + 10;
+    const eiW = W / s - bm - pad - eiX;
+    let ey = eY + tH + 22;
+    txt(c.nom_expediteur || '—', eiX, ey, 13, true, eiW);  ey += 22;
+    lv('Tél :', c.telephone_expediteur, eiX, ey, 10, eiW);  ey += 22;
+    lv('Relais :', partenaireNom, eiX, ey, 10, eiW);
+
+    // Séparateur épais noir (4 px)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(bm * s, (eY + eH) * s, iw * s, 4 * s);
+
+    // ════════════════════════════════════════════════════════
+    // 3. DESTINATAIRE  y: 297 → 492  (h = 195)
+    // ════════════════════════════════════════════════════════
+    const dY = eY + eH + 4, dH = 195;
+
+    secTitle('DESTINATAIRE', dY, tH);
+
+    let dy = dY + tH + 18;
+    const nmW = iw - 2 * pad;
+
+    // Nom en très grand (le plus lisible)
+    ctx.font = `800 ${20 * s}px Arial, sans-serif`;
+    ctx.fillStyle = '#000000';
+    if (ctx.measureText(nomDest).width > nmW * s) ctx.font = `800 ${15 * s}px Arial, sans-serif`;
+    ctx.fillText(nomDest, (bm + pad) * s, dy * s, nmW * s);
+    dy += 32;
+
+    lv('Tél :', c.telephone_destinataire, bm + pad, dy, 11, nmW);  dy += 26;
+    lv('Zone :', c.quartier,              bm + pad, dy, 11, nmW);  dy += 26;
+    lv('Date :', dateStr,                 bm + pad, dy, 11, nmW);
+
+    hline(dY + dH, 2);
+
+    // ════════════════════════════════════════════════════════
+    // 4. PIED DE PAGE  y: 492 → 562  (h = 70)
+    // ════════════════════════════════════════════════════════
+    const ftY = dY + dH;
+
+    txt('mayrelay.vercel.app/suivi', bm + pad, ftY + 20, 8);
+
     ctx.font = `${8 * s}px Arial, sans-serif`;
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('mayrelay.vercel.app/suivi', pad + 4 * s, footerY + 16 * s);
-    const dateStr = new Date(c.created_at).toLocaleDateString('fr-FR');
-    const dw = ctx.measureText(dateStr).width;
-    ctx.fillText(dateStr, W - pad - dw - 4 * s, footerY + 16 * s);
+    ctx.fillStyle = '#000000';
+    const dtW = ctx.measureText(dateStr).width / s;
+    txt(dateStr, W / s - bm - pad - dtW, ftY + 20, 8);
 
+    // Référence répétée en grand au bas
+    ctx.font = `700 ${13 * s}px "Courier New", monospace`;
+    ctx.fillStyle = '#000000';
+    const refFtW = ctx.measureText(refStr).width;
+    ctx.fillText(refStr, (W - refFtW) / 2, (ftY + 50) * s);
+
+    // ── Génération & partage ─────────────────────────────────
     const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
     const file = new File([blob], `etiquette-${c.reference}.png`, { type: 'image/png' });
     if (navigator.canShare && !navigator.canShare({ files: [file] })) {
