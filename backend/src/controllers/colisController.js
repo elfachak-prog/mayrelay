@@ -10,7 +10,7 @@ const genererReference = () => {
 };
 
 const creerColis = async (req, res) => {
-  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids } = req.body;
+  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids } = req.body;
   try {
     const reference = genererReference();
     const partenaire_id = req.user.id;
@@ -34,8 +34,8 @@ const creerColis = async (req, res) => {
     const qr_code = await QRCode.toDataURL(qrData);
 
     const result = await db.query(
-      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *",
-      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids || null]
+      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *",
+      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire || null, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids || null]
     );
 
     const colis = result.rows[0];

@@ -181,6 +181,12 @@ app.listen(PORT, async () => {
     console.error('Migration colis.expediteur:', err.message);
   }
   try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS adresse_destinataire TEXT');
+    console.log('Migration colis.adresse_destinataire OK');
+  } catch (err) {
+    console.error('Migration colis.adresse_destinataire:', err.message);
+  }
+  try {
     await db.query(`CREATE TABLE IF NOT EXISTS demandes_inscription (
       id SERIAL PRIMARY KEY,
       role TEXT NOT NULL CHECK (role IN ('partenaire', 'livreur')),

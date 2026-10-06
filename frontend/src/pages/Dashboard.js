@@ -230,6 +230,10 @@ const partagerEtiquette = async (c, logo, partenaireNom, onStart, onEnd) => {
     ctx.fillText(nomDest, (bm + pad) * s, dy * s, nmW * s);
     dy += 32;
 
+    if (c.adresse_destinataire) {
+      lv('Adresse :', c.adresse_destinataire, bm + pad, dy, 10, nmW);  dy += 22;
+    }
+
     lv('Tél :', c.telephone_destinataire, bm + pad, dy, 11, nmW);  dy += 26;
     lv('Zone :', c.quartier,              bm + pad, dy, 11, nmW);  dy += 26;
     lv('Date :', dateStr,                 bm + pad, dy, 11, nmW);
@@ -280,7 +284,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
   const [form, setForm] = useState({
     nom_destinataire: '', prenom_destinataire: '',
     telephone_destinataire: '', telephone2_destinataire: '',
-    email_destinataire: '', quartier: '', type: 'Colis', notes: '',
+    email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '',
     nom_expediteur: '', telephone_expediteur: '', email_expediteur: '',
     poids: ''
   });
@@ -334,7 +338,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
       const telExp = form.telephone_expediteur ? paysE + form.telephone_expediteur.replace(/^0/, '') : '';
       const res = await creerColis({ ...form, telephone_destinataire: tel1, telephone2_destinataire: tel2, telephone_expediteur: telExp });
       setSucces(res.data.colis);
-      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '' });
+      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '' });
       chargerColis();
       chargerStats();
     } catch (err) { console.error(err); }
@@ -479,6 +483,11 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
                   <SelecteurPays value={paysD2} onChange={setPaysD2} />
                   <input style={{ ...inputStyle, borderRadius: '0 10px 10px 0', flex: 1 }} value={form.telephone2_destinataire} onChange={e => setForm({ ...form, telephone2_destinataire: e.target.value })} placeholder="0639 XX XX XX" />
                 </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <label style={labelStyle}>Adresse destinataire (optionnel)</label>
+                <input style={inputStyle} value={form.adresse_destinataire} onChange={e => setForm({ ...form, adresse_destinataire: e.target.value })} placeholder="Rue, bâtiment, quartier précis…" />
               </div>
 
               <div style={{ marginTop: 14 }}>
