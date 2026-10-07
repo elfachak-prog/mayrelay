@@ -49,7 +49,7 @@ router.get('/mes-missions-actives', auth, async (req, res) => {
               c.reference, c.nom_destinataire, c.type,
               p1.nom as partenaire_depart,
               p2.nom as partenaire_destination,
-              p2.quartier as quartier_destination,
+              p2.zone as quartier_destination,
               p2.adresse as adresse_destination,
               p2.latitude as lat_destination,
               p2.longitude as lng_destination
