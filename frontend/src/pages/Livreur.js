@@ -24,7 +24,15 @@ const C = {
   white: "#FFFFFF",
 };
 
-function MissionCard({ mission, onAccepter }) {
+function buildMapsUrl(mission, position) {
+  const dest = `${mission.lat_destination},${mission.lng_destination}`;
+  if (position && position.lat && position.lng) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${position.lat},${position.lng}&destination=${dest}&travelmode=driving`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${dest}`;
+}
+
+function MissionCard({ mission, onAccepter, position }) {
   const [chargement, setChargement] = useState(false);
 
   const handleAccepter = async () => {
@@ -54,6 +62,9 @@ function MissionCard({ mission, onAccepter }) {
             <div>
               <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif' }}>Arrivee</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif' }}>{mission.partenaire_destination}</div>
+              {mission.adresse_destination && (
+                <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginTop: 2 }}>{mission.adresse_destination}</div>
+              )}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -66,6 +77,9 @@ function MissionCard({ mission, onAccepter }) {
           {' · '}<span style={{ fontFamily: 'monospace', color: C.accent }}>{mission.reference}</span>
           {' · '}<span style={{ color: C.muted }}>{mission.type}</span>
         </div>
+        <a href={buildMapsUrl(mission, position)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.blue, fontSize: 13, fontWeight: 600, fontFamily: 'sans-serif', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box', marginBottom: 8 }}>
+          🗺️ Itinéraire
+        </a>
         <button onClick={handleAccepter} disabled={chargement} style={{ width: '100%', padding: '12px', background: chargement ? C.muted : C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 14, fontWeight: 700, cursor: chargement ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}>
           {chargement ? 'Acceptation...' : 'Accepter cette mission →'}
         </button>
@@ -302,7 +316,7 @@ export default function Livreur({ user, onLogout, logo }) {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: isMobile ? 0 : 16 }}>
-                {missions.map(m => <MissionCard key={m.id} mission={m} onAccepter={handleAccepter} />)}
+                {missions.map(m => <MissionCard key={m.id} mission={m} onAccepter={handleAccepter} position={position} />)}
               </div>
             )}
           </div>
@@ -338,6 +352,19 @@ export default function Livreur({ user, onLogout, logo }) {
                     Ref: <span style={{ color: C.accent, fontFamily: 'monospace' }}>{missionEnCours.reference}</span>
                     {' · '}Gain: <span style={{ color: C.accent, fontWeight: 700 }}>{missionEnCours.gain_livreur}€</span>
                   </div>
+                </div>
+
+                {/* Encart destination */}
+                <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.blue}44`, padding: 16, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>
+                    📦 Livraison vers : {missionEnCours.partenaire_destination}
+                  </div>
+                  {missionEnCours.adresse_destination && (
+                    <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 12 }}>{missionEnCours.adresse_destination}</div>
+                  )}
+                  <a href={buildMapsUrl(missionEnCours, position)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '11px', background: C.blue, borderRadius: 10, color: C.white, fontSize: 13, fontWeight: 700, fontFamily: 'sans-serif', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+                    🗺️ Ouvrir dans Google Maps
+                  </a>
                 </div>
 
                 {/* Carte itinéraire */}
