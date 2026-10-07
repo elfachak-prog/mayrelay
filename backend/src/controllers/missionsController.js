@@ -25,30 +25,36 @@ const getMissionsDisponibles = async (req, res) => {
 };
 
 const accepterMission = async (req, res) => {
+  const client = await db.connect();
   try {
     const { id } = req.params;
     const livreur_id = req.user.id;
 
-    const mission = await db.query(
-      'SELECT * FROM missions WHERE id = $1 AND statut = $2',
+    await client.query('BEGIN');
+
+    const mission = await client.query(
+      'SELECT * FROM missions WHERE id = $1 AND statut = $2 FOR UPDATE',
       [id, 'disponible']
     );
 
     if (mission.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Mission non disponible' });
     }
 
-    const result = await db.query(
-      `UPDATE missions SET livreur_id = $1, statut = 'acceptee', updated_at = NOW() 
+    const result = await client.query(
+      `UPDATE missions SET livreur_id = $1, statut = 'acceptee', updated_at = NOW()
        WHERE id = $2 RETURNING *`,
       [livreur_id, id]
     );
 
-    await db.query(
-      `UPDATE colis SET statut = 'en_transit', updated_at = NOW() 
+    await client.query(
+      `UPDATE colis SET statut = 'en_transit', updated_at = NOW()
        WHERE id = $1`,
       [mission.rows[0].colis_id]
     );
+
+    await client.query('COMMIT');
 
     res.json({
       message: 'Mission acceptee',
@@ -56,50 +62,62 @@ const accepterMission = async (req, res) => {
     });
 
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  } finally {
+    client.release();
   }
 };
 
 const confirmerLivraison = async (req, res) => {
+  const client = await db.connect();
   try {
     const { id } = req.params;
     const { note_partenaire } = req.body;
     const livreur_id = req.user.id;
 
-    const mission = await db.query(
-      'SELECT * FROM missions WHERE id = $1 AND livreur_id = $2',
+    await client.query('BEGIN');
+
+    const mission = await client.query(
+      'SELECT * FROM missions WHERE id = $1 AND livreur_id = $2 FOR UPDATE',
       [id, livreur_id]
     );
 
     if (mission.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Mission non trouvee' });
     }
 
     const gain = parseFloat(mission.rows[0].gain_livreur);
 
-    await db.query(
-      `UPDATE missions SET statut = 'termine', note_partenaire = $1, updated_at = NOW() 
+    await client.query(
+      `UPDATE missions SET statut = 'termine', note_partenaire = $1, updated_at = NOW()
        WHERE id = $2`,
       [note_partenaire, id]
     );
 
-    await db.query(
-      `UPDATE colis SET statut = 'livre', updated_at = NOW() 
+    await client.query(
+      `UPDATE colis SET statut = 'livre', updated_at = NOW()
        WHERE id = $1`,
       [mission.rows[0].colis_id]
     );
 
-    await db.query(
+    await client.query(
       'UPDATE livreurs SET solde = solde + $1 WHERE id = $2',
       [gain, livreur_id]
     );
 
+    await client.query('COMMIT');
+
     res.json({ message: 'Livraison confirmee - gain credite' });
 
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  } finally {
+    client.release();
   }
 };
 
