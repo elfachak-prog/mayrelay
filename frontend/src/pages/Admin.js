@@ -877,7 +877,10 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
           <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>👑 {user.nom}</div>
             <div onClick={onLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
-            <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '4px 12px', marginTop: 4 }}>Politique de confidentialité</a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+              <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px' }}>Politique de confidentialité</a>
+              <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px' }}>Mentions légales</a>
+            </div>
           </div>
         </div>
       )}

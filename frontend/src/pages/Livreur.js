@@ -255,7 +255,10 @@ export default function Livreur({ user, onLogout, logo }) {
             <div style={{ background: C.green + '22', border: `1px solid ${C.green}44`, borderRadius: 8, padding: '6px 12px', fontSize: 11, color: C.green, fontFamily: 'sans-serif', fontWeight: 700, marginBottom: 8 }}>● En ligne</div>
             <div style={{ fontSize: 12, color: C.white, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8, fontFamily: 'sans-serif' }}>🛵 {user.nom}</div>
             <div onClick={onLogout} style={{ fontSize: 12, color: C.muted, cursor: 'pointer', padding: '4px 12px', fontFamily: 'sans-serif' }}>← Déconnexion</div>
-            <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '4px 12px', marginTop: 4, fontFamily: 'sans-serif' }}>Politique de confidentialité</a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+              <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px', fontFamily: 'sans-serif' }}>Politique de confidentialité</a>
+              <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px', fontFamily: 'sans-serif' }}>Mentions légales</a>
+            </div>
           </div>
         </div>
       )}

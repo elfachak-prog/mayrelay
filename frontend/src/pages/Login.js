@@ -96,12 +96,18 @@ export default function Login({ onLogin }) {
             Rejoindre MayRelay
           </a>
         </div>
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16 }}>
           <a href="/confidentialite" style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textDecoration: 'none' }}
             onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
             onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
           >
             Politique de confidentialité
+          </a>
+          <a href="/mentions-legales" style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textDecoration: 'none' }}
+            onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+            onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+          >
+            Mentions légales
           </a>
         </div>
       </div>

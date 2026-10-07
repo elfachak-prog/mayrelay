@@ -10,6 +10,7 @@ import TestQR from './pages/TestQR';
 import Reception from './pages/Reception';
 import Rejoindre from './pages/Rejoindre';
 import Confidentialite from './pages/Confidentialite';
+import MentionsLegales from './pages/MentionsLegales';
 import API from './services/api';
 
 function useIsMobile() {
@@ -59,6 +60,9 @@ function App() {
   if (path === '/confidentialite') {
     return <Confidentialite />;
   }
+  if (path === '/mentions-legales') {
+    return <MentionsLegales />;
+  }
 
   if (!user) return <Login onLogin={handleLogin} />;
   if (user.role === 'admin') return <Admin user={user} onLogout={handleLogout} logo={logoUrl} onLogoChange={setLogoUrl} />;
@@ -98,7 +102,10 @@ function App() {
           <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: 12, color: '#fff', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, marginBottom: 8 }}>{user.nom}</div>
             <div onClick={handleLogout} style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 12px' }}>← Deconnexion</div>
-            <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '4px 12px', marginTop: 4 }}>Politique de confidentialité</a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+              <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '2px 12px' }}>Politique de confidentialité</a>
+              <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '2px 12px' }}>Mentions légales</a>
+            </div>
           </div>
         </div>
       )}
