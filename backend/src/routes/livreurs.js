@@ -41,6 +41,33 @@ router.post('/position', auth, async (req, res) => {
   }
 });
 
+// GET /api/livreurs/mes-missions-actives — colis actuellement en transit pour ce livreur
+router.get('/mes-missions-actives', auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT m.id, m.statut, m.gain_livreur,
+              c.reference, c.nom_destinataire, c.type,
+              p1.nom as partenaire_depart,
+              p2.nom as partenaire_destination,
+              p2.quartier as quartier_destination,
+              p2.adresse as adresse_destination,
+              p2.latitude as lat_destination,
+              p2.longitude as lng_destination
+       FROM missions m
+       JOIN colis c ON m.colis_id = c.id
+       JOIN partenaires p1 ON m.partenaire_depart_id = p1.id
+       JOIN partenaires p2 ON m.partenaire_destination_id = p2.id
+       WHERE m.livreur_id = $1 AND m.statut = 'acceptee'
+       ORDER BY m.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ missions: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // PUT /api/livreurs/profil/photo — mettre à jour l'URL de photo
 router.put('/profil/photo', auth, async (req, res) => {
   const { photo_url } = req.body;

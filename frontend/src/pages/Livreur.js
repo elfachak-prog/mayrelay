@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import API, { getMissionsDisponibles, accepterMission, getMesMissions, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
+import API, { getMissionsDisponibles, accepterMission, getMesMissions, getMissionsActives, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import CarteMissions from '../components/CarteMissions';
@@ -93,6 +93,7 @@ export default function Livreur({ user, onLogout, logo }) {
   const [logoLocal, setLogoLocal] = useState(logo || '');
   const [onglet, setOnglet] = useState('missions');
   const [missions, setMissions] = useState([]);
+  const [missionsActives, setMissionsActives] = useState([]);
   const [missionEnCours, setMissionEnCours] = useState(null);
   const [etape, setEtape] = useState('aller_chercher');
   const [showQR, setShowQR] = useState(false);
@@ -116,10 +117,18 @@ export default function Livreur({ user, onLogout, logo }) {
       .catch(() => {});
   }, []);
 
+  const chargerMissionsActives = async () => {
+    try {
+      const res = await getMissionsActives();
+      setMissionsActives(res.data.missions);
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
     chargerMissions();
     chargerHistorique();
     chargerProfil();
+    chargerMissionsActives();
     demarrerGeo();
     QRCode.toDataURL(JSON.stringify({ reference: 'MR-TEST-0000', partenaire_id: 0 }), { width: 220, margin: 2 })
       .then(url => setQrTestImg(url));
@@ -192,9 +201,16 @@ export default function Livreur({ user, onLogout, logo }) {
       setEtape('aller_chercher');
       setOnglet('en_cours');
       chargerMissions();
+      chargerMissionsActives();
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const reprendreMission = (mission) => {
+    setMissionEnCours(mission);
+    setEtape('en_route');
+    setQrErreur('');
   };
 
   const lancerScan = () => { setQrErreur(''); setShowQR(true); };
@@ -326,14 +342,53 @@ export default function Livreur({ user, onLogout, logo }) {
         {onglet === 'en_cours' && (
           <div style={{ padding: isMobile ? 16 : 40, maxWidth: isMobile ? undefined : 700 }}>
             {!missionEnCours ? (
-              <div style={{ textAlign: 'center', padding: 40 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🛵</div>
-                <div style={{ fontSize: 14, color: C.white, fontFamily: 'sans-serif' }}>Aucune mission en cours</div>
-                <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginTop: 8 }}>Acceptez une mission depuis l onglet Missions</div>
+              <div>
+                <div style={{ fontSize: isMobile ? 14 : 20, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 4 }}>Mes colis en charge</div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 16 }}>{missionsActives.length} colis actuellement sous ta responsabilité</div>
+                {missionsActives.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🛵</div>
+                    <div style={{ fontSize: 14, color: C.white, fontFamily: 'sans-serif' }}>Aucune mission en cours</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginTop: 8 }}>Acceptez une mission depuis l'onglet Missions</div>
+                    <button onClick={chargerMissionsActives} style={{ marginTop: 16, padding: '10px 20px', background: C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>Actualiser</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                    {missionsActives.map(m => (
+                      <div key={m.id} style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontFamily: 'monospace', color: C.accent, fontWeight: 700 }}>{m.reference}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginTop: 2 }}>{m.nom_destinataire}</div>
+                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, fontFamily: 'Georgia, serif' }}>{m.gain_livreur}€</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 10 }}>
+                          📦 {m.partenaire_depart} → <span style={{ color: C.white, fontWeight: 600 }}>{m.partenaire_destination}</span>
+                          {m.quartier_destination && <span style={{ color: C.muted }}> · {m.quartier_destination}</span>}
+                        </div>
+                        {m.adresse_destination && (
+                          <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 10 }}>{m.adresse_destination}</div>
+                        )}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${m.lat_destination},${m.lng_destination}&travelmode=driving`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.blue, fontSize: 12, fontWeight: 600, fontFamily: 'sans-serif', textDecoration: 'none' }}>
+                            🗺️ Itinéraire
+                          </a>
+                          <button onClick={() => reprendreMission(m)} style={{ flex: 2, padding: '10px', background: C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                            Reprendre →
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 16 }}>Mission en cours</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setQrErreur(''); chargerMissionsActives(); }} style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 12, padding: '5px 10px', cursor: 'pointer', fontFamily: 'sans-serif' }}>← Retour</button>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.white, fontFamily: 'sans-serif' }}>Mission en cours</div>
+                </div>
 
                 {/* Trajet */}
                 <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 16, marginBottom: 12 }}>
@@ -436,7 +491,7 @@ export default function Livreur({ user, onLogout, logo }) {
                     <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: C.green, fontFamily: 'Georgia, serif', marginBottom: 8 }}>Mission accomplie</div>
                     <div style={{ fontSize: 13, color: C.muted, fontFamily: 'sans-serif', marginBottom: 20 }}>Gain credite : <span style={{ color: C.accent, fontWeight: 700 }}>{missionEnCours.gain_livreur}€</span></div>
-                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setQrErreur(''); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+                    <button onClick={() => { setMissionEnCours(null); setEtape('aller_chercher'); setQrErreur(''); chargerMissionsActives(); setOnglet('missions'); }} style={{ width: '100%', padding: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}>
                       Retour aux missions
                     </button>
                   </div>
