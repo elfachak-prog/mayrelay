@@ -13,6 +13,7 @@ const statutConfig = {
   en_attente: { label: "En attente", color: "#E8A23A", bg: "#FEF3DC" },
   en_transit: { label: "En transit", color: "#1A7FA8", bg: "#EAF6FB" },
   livre: { label: "Livré", color: "#2EAF7D", bg: "#E0F5EE" },
+  recu_au_relais: { label: "Reçu au relais", color: "#7C3AED", bg: "#EDE9FE" },
   paye: { label: "Payé", color: "#2EAF7D", bg: "#E0F5EE" },
   retourne: { label: "Retourné", color: "#EF4444", bg: "#FEE2E2" },
 };
