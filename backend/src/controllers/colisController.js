@@ -2,6 +2,7 @@ const db = require('../config/database');
 const QRCode = require('qrcode');
 const { envoyerSMS } = require('../config/sms');
 const { envoyerEmail } = require('../config/email');
+const { envoyerPushARole } = require('../services/pushService');
 
 const genererReference = () => {
   const annee = new Date().getFullYear();
@@ -66,6 +67,8 @@ const creerColis = async (req, res) => {
       "INSERT INTO notifications (colis_id, telephone, message, statut) VALUES ($1, $2, $3, $4)",
       [colis.id, telephone_destinataire, msgDest, 'envoye']
     );
+
+    envoyerPushARole('livreur', '🛵 Nouvelle mission disponible', `${type} à livrer — ${partenaire.nom} (${partenaire.zone})`).catch(() => {});
 
     res.status(201).json({ message: 'Colis enregistre avec succes', colis });
   } catch (err) {

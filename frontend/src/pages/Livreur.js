@@ -4,6 +4,7 @@ import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import CarteMissions from '../components/CarteMissions';
 import QRCode from 'qrcode';
+import usePushNotifications from '../hooks/usePushNotifications';
 
 function useIsMobile() {
   const query = '(max-width: 767px)';
@@ -90,6 +91,7 @@ function MissionCard({ mission, onAccepter, position }) {
 
 export default function Livreur({ user, onLogout, logo }) {
   const isMobile = useIsMobile();
+  const { abonne, supported, chargement: pushChargement, sAbonner, seDesabonner } = usePushNotifications();
   const [logoLocal, setLogoLocal] = useState(logo || '');
   const [onglet, setOnglet] = useState('missions');
   const [missions, setMissions] = useState([]);
@@ -652,6 +654,23 @@ export default function Livreur({ user, onLogout, logo }) {
               ))}
               <button onClick={chargerProfil} style={{ width: '100%', marginTop: 4, padding: '10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, cursor: 'pointer', fontFamily: 'sans-serif' }}>↻ Actualiser</button>
             </div>
+
+            {/* Notifications push */}
+            {supported && (
+              <div style={{ background: C.card, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 8 }}>🔔 Notifications</div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: 'sans-serif', marginBottom: 12 }}>
+                  {abonne ? 'Vous recevrez une alerte pour chaque nouvelle mission disponible.' : 'Activez les notifications pour être alerté des nouvelles missions.'}
+                </div>
+                <button
+                  onClick={abonne ? seDesabonner : sAbonner}
+                  disabled={pushChargement}
+                  style={{ width: '100%', padding: '10px', background: abonne ? C.surface : C.accent, border: `1px solid ${abonne ? C.border : 'transparent'}`, borderRadius: 10, color: abonne ? C.muted : '#000', fontSize: 13, fontWeight: 700, cursor: pushChargement ? 'not-allowed' : 'pointer', fontFamily: 'sans-serif' }}
+                >
+                  {pushChargement ? '⏳ ...' : abonne ? '🔕 Désactiver les notifications' : '🔔 Activer les notifications'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

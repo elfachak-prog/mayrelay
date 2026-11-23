@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { envoyerPushAUser } = require('../services/pushService');
 
 const getMissionsDisponibles = async (req, res) => {
   try {
@@ -55,6 +56,19 @@ const accepterMission = async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    const colisInfo = await db.query(
+      'SELECT reference, type FROM colis WHERE id = $1',
+      [mission.rows[0].colis_id]
+    );
+    if (colisInfo.rows.length > 0) {
+      const { reference, type } = colisInfo.rows[0];
+      envoyerPushAUser(
+        mission.rows[0].partenaire_destination_id, 'partenaire',
+        '🚚 Colis en route vers vous',
+        `${type} ${reference} pris en charge par un livreur`
+      ).catch(() => {});
+    }
 
     res.json({
       message: 'Mission acceptee',

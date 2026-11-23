@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import API, { getMesColis, creerColis, getStatsPartenaire } from '../services/api';
 import SelecteurPays from '../components/SelecteurPays';
+import usePushNotifications from '../hooks/usePushNotifications';
 
 const COLORS = {
   ocean: "#0A4B6E", lagoon: "#1A7FA8", coral: "#E8613A",
@@ -275,6 +276,7 @@ const partagerEtiquette = async (c, logo, partenaireNom, onStart, onEnd) => {
 };
 
 export default function Dashboard({ user, onLogout, ongletInitial, isMobile, logo }) {
+  const { abonne, supported, chargement: pushChargement, sAbonner, seDesabonner } = usePushNotifications();
   const [onglet, setOnglet] = useState(ongletInitial || 'dashboard');
   const [colis, setColis] = useState([]);
   const [stats, setStats] = useState(null);
@@ -373,6 +375,23 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
             </div>
             <div style={{ fontSize: 48, opacity: 0.3 }}>💶</div>
           </div>
+
+          {/* Notifications push */}
+          {supported && (
+            <div style={{ background: COLORS.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${COLORS.border}`, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.dark }}>🔔 Notifications push</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{abonne ? 'Activées — vous recevrez les alertes colis' : 'Désactivées'}</div>
+              </div>
+              <button
+                onClick={abonne ? seDesabonner : sAbonner}
+                disabled={pushChargement}
+                style={{ padding: '8px 16px', background: abonne ? '#FEF3DC' : COLORS.ocean, border: `1.5px solid ${abonne ? '#E8A23A' : COLORS.ocean}`, borderRadius: 10, color: abonne ? '#E8A23A' : '#fff', fontSize: 12, fontWeight: 700, cursor: pushChargement ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {pushChargement ? '⏳' : abonne ? 'Désactiver' : 'Activer'}
+              </button>
+            </div>
+          )}
 
           {/* Stats en grille */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>

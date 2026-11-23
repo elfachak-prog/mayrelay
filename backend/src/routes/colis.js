@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const db = require('../config/database');
 const { envoyerEmail } = require('../config/email');
+const { envoyerPushAUser } = require('../services/pushService');
 const {
   creerColis,
   getMesColis,
@@ -172,6 +173,12 @@ router.post('/reception/remettre/:reference', auth, async (req, res) => {
       const corps = 'Bonjour ' + colis.nom_destinataire + ',\n\nVotre ' + colis.type.toLowerCase() + ' ' + colis.reference + ' a bien été récupéré. Merci d\'avoir choisi MayRelay !\n\nL\'équipe MayRelay';
       await envoyerEmail(colis.email_destinataire, sujet, corps).catch(() => {});
     }
+
+    envoyerPushAUser(
+      colis.partenaire_id, 'partenaire',
+      '✅ Colis remis au destinataire',
+      `${colis.type} ${colis.reference} récupéré — gain crédité`
+    ).catch(() => {});
 
     res.json({ message: 'Remise confirmee', reference: colis.reference });
   } catch (err) {

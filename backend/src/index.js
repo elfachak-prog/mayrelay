@@ -15,6 +15,7 @@ const suiviRoutes = require('./routes/suivi');
 const livreursRoutes = require('./routes/livreurs');
 const smsAdminRoutes = require('./routes/sms_admin');
 const inscriptionRoutes = require('./routes/inscription');
+const pushRoutes = require('./routes/push');
 const { verifierColisNonRecuperes } = require('./services/notifications');
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/suivi', suiviRoutes);
 app.use('/api/livreurs', livreursRoutes);
 app.use('/api/admin/sms', smsAdminRoutes);
 app.use('/api/inscription', inscriptionRoutes);
+app.use('/api/push', pushRoutes);
 
 if (process.env.NOTIFICATIONS_ACTIVES !== 'false') {
   cron.schedule('0 * * * *', () => {
@@ -127,6 +129,21 @@ app.listen(PORT, async () => {
     console.log('Migration SMS tables OK');
   } catch (err) {
     console.error('Migration SMS:', err.message);
+  }
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      user_role TEXT NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`);
+    console.log('Migration push_subscriptions OK');
+  } catch (err) {
+    console.error('Migration push_subscriptions:', err.message);
   }
   try {
     await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS date_notification_j5 TIMESTAMP');
