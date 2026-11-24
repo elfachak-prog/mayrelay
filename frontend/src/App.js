@@ -6,7 +6,6 @@ import Livreur from './pages/Livreur';
 import Admin from './pages/Admin';
 import Paiements from './pages/Paiements';
 import Suivi from './pages/Suivi';
-import TestQR from './pages/TestQR';
 import Reception from './pages/Reception';
 import Rejoindre from './pages/Rejoindre';
 import Confidentialite from './pages/Confidentialite';
@@ -93,7 +92,7 @@ function App() {
             <div style={{ fontSize: 10, color: '#4A7B94', marginTop: 3, letterSpacing: 2, textTransform: 'uppercase' }}>Espace Partenaire</div>
           </div>
           <div style={{ flex: 1, padding: '12px 10px' }}>
-            {[...navItems, { key: 'testqr', icon: '🧪', label: 'Test QR' }].map(item => (
+            {navItems.map(item => (
               <div key={item.key} onClick={() => setOngletGlobal(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 2, background: ongletGlobal === item.key ? 'rgba(232,97,58,0.15)' : 'transparent', borderLeft: ongletGlobal === item.key ? '3px solid #E8613A' : '3px solid transparent', color: ongletGlobal === item.key ? '#fff' : '#4A7B94', fontSize: 14 }}>
                 <span>{item.icon}</span><span>{item.label}</span>
               </div>
@@ -134,7 +133,6 @@ function App() {
         <div style={{ flex: 1, padding: isMobile ? '20px 16px' : '40px 48px', paddingBottom: isMobile ? 80 : undefined, overflowY: 'auto' }}>
           {ongletGlobal === 'casiers' && <Casiers user={user} />}
           {ongletGlobal === 'paiements' && <Paiements user={user} />}
-          {ongletGlobal === 'testqr' && <TestQR />}
           {ongletGlobal === 'reception' && <Reception />}
           {ongletGlobal === 'parametres' && (
             <div style={{ maxWidth: 480 }}>
@@ -170,7 +168,7 @@ function App() {
               </button>
             </div>
           )}
-          {!['casiers', 'paiements', 'testqr', 'reception', 'parametres'].includes(ongletGlobal) && (
+          {!['casiers', 'paiements', 'reception', 'parametres'].includes(ongletGlobal) && (
             <Dashboard user={user} onLogout={handleLogout} ongletInitial={ongletGlobal} isMobile={isMobile} logo={logoUrl} />
           )}
         </div>
