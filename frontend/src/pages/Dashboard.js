@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import API, { getMesColis, creerColis, getStatsPartenaire } from '../services/api';
+import { useState, useEffect, useRef } from 'react';
+import API, { getMesColis, creerColis, getStatsPartenaire, getPartenairesActifs } from '../services/api';
 import SelecteurPays from '../components/SelecteurPays';
 import usePushNotifications from '../hooks/usePushNotifications';
 
@@ -19,7 +19,14 @@ const statutConfig = {
   retourne: { label: "Retourné", color: "#EF4444", bg: "#FEE2E2" },
 };
 
-const quartiers = ["Mamoudzou Centre","Kaweni","Bandraboua","Koungou","Pamandzi","Dzaoudzi","Labattoir","Labattoir Centre","Boueni","Chiconi","Sada","Tsingoni","Mtsamboro"];
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return +(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+};
 
 const imprimerEtiquette = (c, logo, partenaireNom) => {
   const w = window.open('', '_blank', 'width=420,height=370');
@@ -289,12 +296,15 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
     telephone_destinataire: '', telephone2_destinataire: '',
     email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '',
     nom_expediteur: '', telephone_expediteur: '', email_expediteur: '',
-    poids: ''
+    poids: '', partenaire_destination_id: null
   });
   const [succes, setSucces] = useState(null);
   const [tarifVolumineux, setTarifVolumineux] = useState({ base: 8, parKg: 1.5 });
   const [logoLocal, setLogoLocal] = useState(logo || '');
   const [partageRef, setPartageRef] = useState(null);
+  const [partenaires, setPartenaires] = useState([]);
+  const [coordsDest, setCoordsDest] = useState(null);
+  const geocodeTimerRef = useRef(null);
 
   useEffect(() => {
     chargerColis();
@@ -307,8 +317,24 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
       });
       setLogoLocal(p.logo_url || '');
     }).catch(() => {});
+    getPartenairesActifs().then(res => setPartenaires(res.data.partenaires || [])).catch(() => {});
   }, []);
   useEffect(() => { setOnglet(ongletInitial || 'dashboard'); }, [ongletInitial]);
+
+  useEffect(() => {
+    const adresse = form.adresse_destinataire;
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    if (!adresse || adresse.length < 5) { setCoordsDest(null); return; }
+    geocodeTimerRef.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(adresse + ', Mayotte')}&format=json&limit=1`;
+        const resp = await fetch(url, { headers: { 'User-Agent': 'MayRelay/1.0' } });
+        const data = await resp.json();
+        if (data.length > 0) setCoordsDest({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) });
+        else setCoordsDest(null);
+      } catch { setCoordsDest(null); }
+    }, 800);
+  }, [form.adresse_destinataire]);
 
   const calculerPrixVolumineux = (poids) => {
     const p = parseFloat(poids) || 0;
@@ -332,7 +358,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
   };
 
   const handleEnvoi = async () => {
-    if (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier) return;
+    if (!form.nom_destinataire || !form.telephone_destinataire || !form.partenaire_destination_id) return;
     if (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0)) return;
     setChargement(true);
     try {
@@ -341,7 +367,8 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
       const telExp = form.telephone_expediteur ? paysE + form.telephone_expediteur.replace(/^0/, '') : '';
       const res = await creerColis({ ...form, telephone_destinataire: tel1, telephone2_destinataire: tel2, telephone_expediteur: telExp });
       setSucces(res.data.colis);
-      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '' });
+      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '', partenaire_destination_id: null });
+      setCoordsDest(null);
       chargerColis();
       chargerStats();
     } catch (err) { console.error(err); }
@@ -516,11 +543,60 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
               </div>
 
               <div style={{ marginTop: 14 }}>
-                <label style={labelStyle}>Quartier *</label>
-                <select style={{ ...inputStyle, appearance: 'none' }} value={form.quartier} onChange={e => setForm({ ...form, quartier: e.target.value })}>
-                  <option value="">Sélectionnez un quartier...</option>
-                  {quartiers.map(q => <option key={q} value={q}>{q}</option>)}
-                </select>
+                <label style={labelStyle}>Point relais destination *</label>
+                {(() => {
+                  const partenairesAvecDist = partenaires
+                    .filter(p => p.id !== user.id)
+                    .map(p => ({
+                      ...p,
+                      distance: (coordsDest && p.latitude != null && p.longitude != null)
+                        ? haversineKm(coordsDest.lat, coordsDest.lon, parseFloat(p.latitude), parseFloat(p.longitude))
+                        : null
+                    }))
+                    .sort((a, b) => {
+                      if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
+                      if (a.distance !== null) return -1;
+                      if (b.distance !== null) return 1;
+                      return a.nom.localeCompare(b.nom);
+                    });
+                  return (
+                    <div style={{ maxHeight: 300, overflowY: 'auto', border: `1.5px solid ${COLORS.border}`, borderRadius: 10, background: '#FAFBFC' }}>
+                      {partenairesAvecDist.length === 0 && (
+                        <div style={{ padding: '16px', textAlign: 'center', color: '#888', fontSize: 13 }}>Chargement des points relais…</div>
+                      )}
+                      {partenairesAvecDist.map((p, i) => {
+                        const selected = form.partenaire_destination_id === p.id;
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => setForm({ ...form, partenaire_destination_id: p.id, quartier: p.zone })}
+                            style={{
+                              padding: '12px 14px',
+                              borderBottom: i < partenairesAvecDist.length - 1 ? `1px solid ${COLORS.border}` : 'none',
+                              cursor: 'pointer',
+                              background: selected ? COLORS.foam : 'transparent',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              borderLeft: selected ? `3px solid ${COLORS.lagoon}` : '3px solid transparent',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: selected ? 700 : 500, color: selected ? COLORS.ocean : COLORS.dark, fontSize: 14 }}>{p.nom}</div>
+                              <div style={{ fontSize: 11, color: COLORS.mid, marginTop: 2 }}>📍 {p.zone || p.adresse || '—'}</div>
+                            </div>
+                            {p.distance !== null
+                              ? <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.lagoon, background: COLORS.foam, border: `1px solid ${COLORS.lagoon}`, borderRadius: 20, padding: '2px 10px', whiteSpace: 'nowrap' }}>{p.distance} km</span>
+                              : null
+                            }
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                {coordsDest && <div style={{ fontSize: 10, color: COLORS.mid, marginTop: 4 }}>Distances calculées depuis l'adresse de destination.</div>}
+                {!coordsDest && form.adresse_destinataire && form.adresse_destinataire.length >= 5 && <div style={{ fontSize: 10, color: '#AAA', marginTop: 4 }}>Géocodage de l'adresse en cours…</div>}
               </div>
 
               <div style={{ marginTop: 14 }}>
@@ -598,8 +674,8 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
 
               <button
                 onClick={handleEnvoi}
-                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.quartier || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))}
-                style={{ marginTop: 20, width: '100%', padding: 16, background: (!form.nom_destinataire || !form.telephone_destinataire || !form.quartier || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))) ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                disabled={chargement || !form.nom_destinataire || !form.telephone_destinataire || !form.partenaire_destination_id || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))}
+                style={{ marginTop: 20, width: '100%', padding: 16, background: (!form.nom_destinataire || !form.telephone_destinataire || !form.partenaire_destination_id || !form.nom_expediteur || !form.telephone_expediteur || (form.type === 'Volumineux' && (!form.poids || parseFloat(form.poids) <= 0))) ? '#CCC' : COLORS.coral, border: 'none', borderRadius: 12, color: COLORS.white, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
               >
                 {chargement ? 'Enregistrement...' : "Enregistrer l'envoi →"}
               </button>

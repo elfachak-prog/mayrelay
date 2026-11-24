@@ -14,6 +14,22 @@ const {
 router.post('/', auth, creerColis);
 router.get('/', auth, getMesColis);
 
+// Liste des partenaires actifs avec GPS pour sélection du point relais destination
+router.get('/partenaires-actifs', auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, nom, zone, adresse, latitude, longitude, horaires
+       FROM partenaires
+       WHERE statut = 'actif'
+       ORDER BY nom`
+    );
+    res.json({ partenaires: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // Étape 1 : colis en transit/livré à réceptionner du livreur
 router.get('/reception/a-recevoir', auth, async (req, res) => {
   try {

@@ -26,5 +26,6 @@ export const getStatsPartenaire = () => API.get('/paiements/stats-partenaire');
 export const envoyerPositionLivreur = (latitude, longitude) => API.post('/livreurs/position', { latitude, longitude });
 export const getMissionsActives = () => API.get('/livreurs/mes-missions-actives');
 export const changePassword = (data) => API.post('/auth/change-password', data);
+export const getPartenairesActifs = () => API.get('/colis/partenaires-actifs');
 
 export default API;

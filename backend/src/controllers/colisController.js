@@ -11,7 +11,7 @@ const genererReference = () => {
 };
 
 const creerColis = async (req, res) => {
-  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids } = req.body;
+  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids, partenaire_destination_id } = req.body;
   try {
     const reference = genererReference();
     const partenaire_id = req.user.id;
@@ -42,9 +42,10 @@ const creerColis = async (req, res) => {
     const colis = result.rows[0];
 
     const gain_livreur = parseFloat((prix * 0.30).toFixed(2));
+    const dest_id = partenaire_destination_id || partenaire_id;
     await db.query(
-      "INSERT INTO missions (colis_id, partenaire_depart_id, partenaire_destination_id, statut, gain_livreur) VALUES ($1, $2, $2, 'disponible', $3)",
-      [colis.id, partenaire_id, gain_livreur]
+      "INSERT INTO missions (colis_id, partenaire_depart_id, partenaire_destination_id, statut, gain_livreur) VALUES ($1, $2, $3, 'disponible', $4)",
+      [colis.id, partenaire_id, dest_id, gain_livreur]
     );
 
     const partInfo = await db.query("SELECT nom, zone, horaires FROM partenaires WHERE id = $1", [partenaire_id]);
