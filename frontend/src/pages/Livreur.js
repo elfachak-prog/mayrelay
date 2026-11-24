@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import API, { getMissionsDisponibles, accepterMission, getMesMissions, getMissionsActives, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur } from '../services/api';
+import API, { getMissionsDisponibles, accepterMission, getMesMissions, getMissionsActives, getProfilLivreur, updatePhotoLivreur, envoyerPositionLivreur, changePassword } from '../services/api';
 import QRScanner from '../components/QRScanner';
 import MapItineraire from '../components/MapItineraire';
 import CarteMissions from '../components/CarteMissions';
@@ -112,6 +112,8 @@ export default function Livreur({ user, onLogout, logo }) {
   const [editPhoto, setEditPhoto] = useState(false);
   const [photoInput, setPhotoInput] = useState('');
   const [secondesDepuisMAJ, setSecondesDepuisMAJ] = useState(0);
+  const [pwForm, setPwForm] = useState({ actuel: '', nouveau: '', confirm: '' });
+  const [pwMsg, setPwMsg] = useState(null);
 
   useEffect(() => {
     API.get('/parametres')
@@ -671,6 +673,47 @@ export default function Livreur({ user, onLogout, logo }) {
                 </button>
               </div>
             )}
+
+            {/* Changement de mot de passe */}
+            <div style={{ background: C.card, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.white, fontFamily: 'sans-serif', marginBottom: 14 }}>Changer le mot de passe</div>
+              {['actuel', 'nouveau', 'confirm'].map((field) => (
+                <div key={field} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontFamily: 'sans-serif', marginBottom: 6 }}>
+                    {field === 'actuel' ? 'Mot de passe actuel' : field === 'nouveau' ? 'Nouveau mot de passe' : 'Confirmer le nouveau'}
+                  </div>
+                  <input
+                    type="password"
+                    value={pwForm[field]}
+                    onChange={e => { setPwForm(f => ({ ...f, [field]: e.target.value })); setPwMsg(null); }}
+                    style={{ width: '100%', padding: '10px 12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 13, fontFamily: 'sans-serif', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+              ))}
+              {pwMsg && (
+                <div style={{ fontSize: 12, color: pwMsg.ok ? C.green : C.red, marginBottom: 10, fontFamily: 'sans-serif' }}>
+                  {pwMsg.text}
+                </div>
+              )}
+              <button
+                onClick={async () => {
+                  setPwMsg(null);
+                  if (!pwForm.actuel || !pwForm.nouveau || !pwForm.confirm) return setPwMsg({ ok: false, text: 'Veuillez remplir tous les champs.' });
+                  if (pwForm.nouveau !== pwForm.confirm) return setPwMsg({ ok: false, text: 'Les mots de passe ne correspondent pas.' });
+                  if (pwForm.nouveau.length < 8) return setPwMsg({ ok: false, text: 'Au moins 8 caractères requis.' });
+                  try {
+                    await changePassword({ mot_de_passe_actuel: pwForm.actuel, nouveau_mot_de_passe: pwForm.nouveau });
+                    setPwMsg({ ok: true, text: 'Mot de passe modifié avec succès.' });
+                    setPwForm({ actuel: '', nouveau: '', confirm: '' });
+                  } catch (err) {
+                    setPwMsg({ ok: false, text: err.response?.data?.message || 'Erreur lors du changement de mot de passe.' });
+                  }
+                }}
+                style={{ width: '100%', padding: '11px', background: C.accent, border: 'none', borderRadius: 10, color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                Mettre à jour le mot de passe
+              </button>
+            </div>
           </div>
         )}
 

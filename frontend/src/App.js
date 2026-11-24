@@ -10,7 +10,7 @@ import Reception from './pages/Reception';
 import Rejoindre from './pages/Rejoindre';
 import Confidentialite from './pages/Confidentialite';
 import MentionsLegales from './pages/MentionsLegales';
-import API from './services/api';
+import API, { changePassword } from './services/api';
 
 function useIsMobile() {
   const query = '(max-width: 767px)';
@@ -33,6 +33,9 @@ function App() {
   const [ongletGlobal, setOngletGlobal] = useState('dashboard');
   const [logoUrl, setLogoUrl] = useState('');
   const isMobile = useIsMobile();
+
+  const [pwForm, setPwForm] = useState({ actuel: '', nouveau: '', confirm: '' });
+  const [pwMsg, setPwMsg] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -160,9 +163,51 @@ function App() {
                   <div style={{ fontSize: 15, color: '#0D1F2D', textTransform: 'capitalize' }}>{user.role}</div>
                 </div>
               </div>
+
+              {/* Changement de mot de passe */}
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: '20px 24px', marginTop: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1F2D', marginBottom: 16, fontFamily: 'Georgia, serif' }}>Changer le mot de passe</div>
+                {['actuel', 'nouveau', 'confirm'].map((field, i) => (
+                  <div key={field} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#4A7B94', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>
+                      {field === 'actuel' ? 'Mot de passe actuel' : field === 'nouveau' ? 'Nouveau mot de passe' : 'Confirmer le nouveau'}
+                    </div>
+                    <input
+                      type="password"
+                      value={pwForm[field]}
+                      onChange={e => { setPwForm(f => ({ ...f, [field]: e.target.value })); setPwMsg(null); }}
+                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E2E8F0', borderRadius: 10, fontSize: 14, color: '#0D1F2D', boxSizing: 'border-box', outline: 'none', fontFamily: 'sans-serif' }}
+                    />
+                  </div>
+                ))}
+                {pwMsg && (
+                  <div style={{ fontSize: 13, color: pwMsg.ok ? '#22C55E' : '#EF4444', marginBottom: 10, fontFamily: 'sans-serif' }}>
+                    {pwMsg.text}
+                  </div>
+                )}
+                <button
+                  onClick={async () => {
+                    setPwMsg(null);
+                    if (!pwForm.actuel || !pwForm.nouveau || !pwForm.confirm) return setPwMsg({ ok: false, text: 'Veuillez remplir tous les champs.' });
+                    if (pwForm.nouveau !== pwForm.confirm) return setPwMsg({ ok: false, text: 'Les mots de passe ne correspondent pas.' });
+                    if (pwForm.nouveau.length < 8) return setPwMsg({ ok: false, text: 'Le nouveau mot de passe doit contenir au moins 8 caractères.' });
+                    try {
+                      await changePassword({ mot_de_passe_actuel: pwForm.actuel, nouveau_mot_de_passe: pwForm.nouveau });
+                      setPwMsg({ ok: true, text: 'Mot de passe modifié avec succès.' });
+                      setPwForm({ actuel: '', nouveau: '', confirm: '' });
+                    } catch (err) {
+                      setPwMsg({ ok: false, text: err.response?.data?.message || 'Erreur lors du changement de mot de passe.' });
+                    }
+                  }}
+                  style={{ width: '100%', padding: '12px 0', background: '#0D1F2D', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                >
+                  Mettre à jour le mot de passe
+                </button>
+              </div>
+
               <button
                 onClick={handleLogout}
-                style={{ marginTop: 20, width: '100%', padding: '14px 0', background: 'transparent', border: '1.5px solid #E2E8F0', borderRadius: 12, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                style={{ marginTop: 16, width: '100%', padding: '14px 0', background: 'transparent', border: '1.5px solid #E2E8F0', borderRadius: 12, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif' }}
               >
                 ← Déconnexion
               </button>

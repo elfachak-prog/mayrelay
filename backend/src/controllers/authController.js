@@ -89,4 +89,35 @@ const register = async (req, res) => {
   }
 };
 
-module.exports = { login, register };
+const changePassword = async (req, res) => {
+  const { mot_de_passe_actuel, nouveau_mot_de_passe } = req.body;
+  const { id, role } = req.user;
+
+  if (!mot_de_passe_actuel || !nouveau_mot_de_passe) {
+    return res.status(400).json({ message: 'Champs requis manquants' });
+  }
+  if (nouveau_mot_de_passe.length < 8) {
+    return res.status(400).json({ message: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+  }
+
+  try {
+    const table = role === 'partenaire' ? 'partenaires' : role === 'livreur' ? 'livreurs' : null;
+    if (!table) return res.status(400).json({ message: 'Rôle invalide' });
+
+    const result = await db.query(`SELECT mot_de_passe FROM ${table} WHERE id = $1`, [id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    const valid = await bcrypt.compare(mot_de_passe_actuel, result.rows[0].mot_de_passe);
+    if (!valid) return res.status(401).json({ message: 'Mot de passe actuel incorrect' });
+
+    const hash = await bcrypt.hash(nouveau_mot_de_passe, 10);
+    await db.query(`UPDATE ${table} SET mot_de_passe = $1 WHERE id = $2`, [hash, id]);
+
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+module.exports = { login, register, changePassword };
