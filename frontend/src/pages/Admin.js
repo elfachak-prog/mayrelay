@@ -880,6 +880,7 @@ export default function Admin({ user, onLogout, logo, onLogoChange }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
               <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px' }}>Politique de confidentialité</a>
               <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px' }}>Mentions légales</a>
+              <a href="/cgu" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px' }}>CGU</a>
             </div>
           </div>
         </div>
