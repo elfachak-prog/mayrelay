@@ -292,6 +292,7 @@ export default function Livreur({ user, onLogout, logo }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
               <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px', fontFamily: 'sans-serif' }}>Politique de confidentialité</a>
               <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px', fontFamily: 'sans-serif' }}>Mentions légales</a>
+              <a href="/cgu" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.15)', textDecoration: 'none', padding: '2px 12px', fontFamily: 'sans-serif' }}>CGU</a>
             </div>
           </div>
         </div>
