@@ -10,6 +10,7 @@ import Reception from './pages/Reception';
 import Rejoindre from './pages/Rejoindre';
 import Confidentialite from './pages/Confidentialite';
 import MentionsLegales from './pages/MentionsLegales';
+import CGU from './pages/CGU';
 import API, { changePassword } from './services/api';
 
 function useIsMobile() {
@@ -65,6 +66,9 @@ function App() {
   if (path === '/mentions-legales') {
     return <MentionsLegales />;
   }
+  if (path === '/cgu') {
+    return <CGU />;
+  }
 
   if (!user) return <Login onLogin={handleLogin} />;
   if (user.role === 'admin') return <Admin user={user} onLogout={handleLogout} logo={logoUrl} onLogoChange={setLogoUrl} />;
@@ -107,6 +111,7 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
               <a href="/confidentialite" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '2px 12px' }}>Politique de confidentialité</a>
               <a href="/mentions-legales" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '2px 12px' }}>Mentions légales</a>
+              <a href="/cgu" style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.2)', textDecoration: 'none', padding: '2px 12px' }}>CGU</a>
             </div>
           </div>
         </div>

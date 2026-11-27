@@ -109,6 +109,12 @@ export default function Login({ onLogin }) {
           >
             Mentions légales
           </a>
+          <a href="/cgu" style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textDecoration: 'none' }}
+            onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+            onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+          >
+            CGU
+          </a>
         </div>
       </div>
     </div>
