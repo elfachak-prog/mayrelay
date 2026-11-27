@@ -220,6 +220,22 @@ export default function Rejoindre() {
           </a>
         </div>
       )}
+
+      {/* Footer légal */}
+      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center', gap: 20 }}>
+        <a href="/confidentialite" style={{ fontSize: 11, color: C.muted, textDecoration: 'none', opacity: 0.6 }}
+          onMouseOver={e => e.currentTarget.style.opacity = '1'}
+          onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+        >Politique de confidentialité</a>
+        <a href="/mentions-legales" style={{ fontSize: 11, color: C.muted, textDecoration: 'none', opacity: 0.6 }}
+          onMouseOver={e => e.currentTarget.style.opacity = '1'}
+          onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+        >Mentions légales</a>
+        <a href="/cgu" style={{ fontSize: 11, color: C.muted, textDecoration: 'none', opacity: 0.6 }}
+          onMouseOver={e => e.currentTarget.style.opacity = '1'}
+          onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+        >CGU</a>
+      </div>
     </div>
   );
 }
