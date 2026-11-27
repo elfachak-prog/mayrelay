@@ -204,6 +204,12 @@ app.listen(PORT, async () => {
     console.error('Migration colis.adresse_destinataire:', err.message);
   }
   try {
+    await db.query('ALTER TABLE colis ADD COLUMN IF NOT EXISTS valeur_declaree NUMERIC(10,2)');
+    console.log('Migration colis.valeur_declaree OK');
+  } catch (err) {
+    console.error('Migration colis.valeur_declaree:', err.message);
+  }
+  try {
     await db.query(`CREATE TABLE IF NOT EXISTS demandes_inscription (
       id SERIAL PRIMARY KEY,
       role TEXT NOT NULL CHECK (role IN ('partenaire', 'livreur')),
