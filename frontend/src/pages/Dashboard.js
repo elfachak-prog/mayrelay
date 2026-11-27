@@ -296,7 +296,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
     telephone_destinataire: '', telephone2_destinataire: '',
     email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '',
     nom_expediteur: '', telephone_expediteur: '', email_expediteur: '',
-    poids: '', valeur_declaree: '', partenaire_destination_id: null
+    poids: '', assurance_niveau: 'none', partenaire_destination_id: null
   });
   const [succes, setSucces] = useState(null);
   const [tarifVolumineux, setTarifVolumineux] = useState({ base: 8, parKg: 1.5 });
@@ -367,7 +367,7 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
       const telExp = form.telephone_expediteur ? paysE + form.telephone_expediteur.replace(/^0/, '') : '';
       const res = await creerColis({ ...form, telephone_destinataire: tel1, telephone2_destinataire: tel2, telephone_expediteur: telExp });
       setSucces(res.data.colis);
-      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '', valeur_declaree: '', partenaire_destination_id: null });
+      setForm({ nom_destinataire: '', prenom_destinataire: '', telephone_destinataire: '', telephone2_destinataire: '', email_destinataire: '', adresse_destinataire: '', quartier: '', type: 'Colis', notes: '', nom_expediteur: '', telephone_expediteur: '', email_expediteur: '', poids: '', assurance_niveau: 'none', partenaire_destination_id: null });
       setCoordsDest(null);
       chargerColis();
       chargerStats();
@@ -644,19 +644,24 @@ export default function Dashboard({ user, onLogout, ongletInitial, isMobile, log
               )}
 
               <div style={{ marginTop: 14 }}>
-                <label style={labelStyle}>Valeur déclarée en € (optionnel)</label>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  min="0"
-                  max="150"
-                  step="0.01"
-                  value={form.valeur_declaree}
-                  onChange={e => setForm({ ...form, valeur_declaree: e.target.value })}
-                  placeholder="ex : 50"
-                />
-                <div style={{ marginTop: 6, fontSize: 11, color: COLORS.mid }}>
-                  Plafond d'indemnisation : <strong>150 €</strong>. En cas de perte ou de dommage, l'indemnisation est limitée à la valeur déclarée dans la limite de 150 €.
+                <label style={labelStyle}>Assurance</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { key: 'none', label: 'Sans assurance', desc: 'Plafond 50 €', supplement: 0 },
+                    { key: 'standard', label: 'Assurance standard', desc: "Couverture jusqu'à 50 €", supplement: 0.50 },
+                    { key: 'premium', label: 'Assurance premium', desc: "Couverture jusqu'à 150 €", supplement: 1.50 },
+                  ].map(opt => (
+                    <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: `2px solid ${form.assurance_niveau === opt.key ? COLORS.lagoon : COLORS.border}`, borderRadius: 10, cursor: 'pointer', background: form.assurance_niveau === opt.key ? COLORS.foam : COLORS.white }}>
+                      <input type="radio" name="assurance" value={opt.key} checked={form.assurance_niveau === opt.key} onChange={() => setForm({ ...form, assurance_niveau: opt.key })} style={{ accentColor: COLORS.lagoon }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: form.assurance_niveau === opt.key ? 700 : 500, color: form.assurance_niveau === opt.key ? COLORS.ocean : COLORS.dark }}>{opt.label}</div>
+                        <div style={{ fontSize: 11, color: COLORS.mid, marginTop: 2 }}>{opt.desc}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: opt.supplement > 0 ? COLORS.coral : '#AAA', whiteSpace: 'nowrap' }}>
+                        {opt.supplement > 0 ? `+${opt.supplement.toFixed(2)} €` : 'Inclus'}
+                      </div>
+                    </label>
+                  ))}
                 </div>
               </div>
 

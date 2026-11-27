@@ -11,14 +11,14 @@ const genererReference = () => {
 };
 
 const creerColis = async (req, res) => {
-  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids, valeur_declaree, partenaire_destination_id } = req.body;
+  const { nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids, assurance_niveau, partenaire_destination_id } = req.body;
   try {
     const reference = genererReference();
     const partenaire_id = req.user.id;
 
-    let prix;
+    let prix_base;
     if (type === 'Courrier') {
-      prix = 3.00;
+      prix_base = 3.00;
     } else if (type === 'Volumineux') {
       const paramsRes = await db.query("SELECT cle, valeur FROM parametres WHERE cle IN ('prix_volumineux_base','prix_volumineux_par_kg')");
       const p = {};
@@ -26,24 +26,27 @@ const creerColis = async (req, res) => {
       const base = p.prix_volumineux_base || 8;
       const parKg = p.prix_volumineux_par_kg || 1.5;
       const poidsVal = parseFloat(poids) || 0;
-      prix = poidsVal > 5 ? +(base + (poidsVal - 5) * parKg).toFixed(2) : base;
+      prix_base = poidsVal > 5 ? +(base + (poidsVal - 5) * parKg).toFixed(2) : base;
     } else {
-      prix = 5.00;
+      prix_base = 5.00;
     }
+
+    const niveauMap = { standard: 0.50, premium: 1.50 };
+    const assurance_supplement = niveauMap[assurance_niveau] || 0;
+    const assurance_niveau_val = ['none', 'standard', 'premium'].includes(assurance_niveau) ? assurance_niveau : 'none';
+    const prix = +(prix_base + assurance_supplement).toFixed(2);
 
     const qrData = JSON.stringify({ reference, partenaire_id });
     const qr_code = await QRCode.toDataURL(qrData);
 
-    const valeurDeclareeVal = valeur_declaree ? Math.min(parseFloat(valeur_declaree) || 0, 150) : null;
-
     const result = await db.query(
-      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids, valeur_declaree) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *",
-      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire || null, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids || null, valeurDeclareeVal]
+      "INSERT INTO colis (reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids, assurance_niveau, assurance_supplement) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *",
+      [reference, partenaire_id, nom_destinataire, prenom_destinataire, telephone_destinataire, telephone2_destinataire, email_destinataire, adresse_destinataire || null, quartier, type, prix, qr_code, notes, nom_expediteur, telephone_expediteur, email_expediteur, poids || null, assurance_niveau_val, assurance_supplement]
     );
 
     const colis = result.rows[0];
 
-    const gain_livreur = parseFloat((prix * 0.30).toFixed(2));
+    const gain_livreur = parseFloat((prix_base * 0.30).toFixed(2));
     const dest_id = partenaire_destination_id || partenaire_id;
     await db.query(
       "INSERT INTO missions (colis_id, partenaire_depart_id, partenaire_destination_id, statut, gain_livreur) VALUES ($1, $2, $3, 'disponible', $4)",
