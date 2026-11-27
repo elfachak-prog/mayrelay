@@ -201,6 +201,20 @@ export default function Suivi() {
         <div style={{ textAlign: 'center', marginTop: 40, fontSize: 12, color: '#4A7B94' }}>
           MayRelay — Le réseau de distribution de Mayotte 🏝️
         </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12 }}>
+          <a href="/confidentialite" style={{ fontSize: 11, color: '#4A7B94', textDecoration: 'none', opacity: 0.6 }}
+            onMouseOver={e => e.currentTarget.style.opacity = '1'}
+            onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+          >Politique de confidentialité</a>
+          <a href="/mentions-legales" style={{ fontSize: 11, color: '#4A7B94', textDecoration: 'none', opacity: 0.6 }}
+            onMouseOver={e => e.currentTarget.style.opacity = '1'}
+            onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+          >Mentions légales</a>
+          <a href="/cgu" style={{ fontSize: 11, color: '#4A7B94', textDecoration: 'none', opacity: 0.6 }}
+            onMouseOver={e => e.currentTarget.style.opacity = '1'}
+            onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+          >CGU</a>
+        </div>
       </div>
     </div>
   );
